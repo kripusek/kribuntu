@@ -17,6 +17,8 @@ install -Dm755 "$repo/updater/update-root.sh" /usr/local/libexec/kribuntu-update
 install -Dm755 "$repo/updater/update-gui.sh" /usr/local/bin/kribuntu-update
 install -Dm644 "$repo/updater/kribuntu-update.desktop" /usr/local/share/applications/kribuntu-update.desktop
 install -Dm644 "$repo/updater/kribuntu-gaming.desktop" /usr/local/share/applications/kribuntu-gaming.desktop
+install -Dm755 "$repo/center/kribuntu-center.py" /usr/local/bin/kribuntu-center
+install -Dm644 "$repo/center/kribuntu-center.desktop" /usr/local/share/applications/kribuntu-center.desktop
 git -C "$repo" rev-parse --short HEAD > /usr/local/share/kribuntu-version
 command -v update-desktop-database >/dev/null && update-desktop-database /usr/local/share/applications || true
 printf 'Aktualizacja plikow Kribuntu zakonczona.\n'

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Centrum Kribuntu
+Comment=Gry i narzędzia Kribuntu
+Exec=/usr/local/bin/kribuntu-center
+Icon=applications-games
+Categories=Game;
+Terminal=false

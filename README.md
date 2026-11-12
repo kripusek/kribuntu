@@ -53,3 +53,4 @@ bash ~/kribuntu-source/setup-updater.sh
 ```
 
 System poprosi o hasło administratora. Potem w menu aplikacji uruchom **Aktualizacje Kribuntu**, aby pobrać nowsze pliki i wybrać zastosowanie ciemnego motywu, kolorów i tapety. W menu pojawi się też **Kribuntu — tryb gier**, uruchamiający interfejs Steam; wymaga Steama z Flathub. Aktualizator nie instaluje pełnych aktualizacji Ubuntu — te nadal obsługuje Discover. W razie problemów aktualizator można wywołać w terminalu jako `kribuntu-update`.
+Po aktualizacji uruchom z menu **Centrum Kribuntu** — to okno z kafelkami gier, Discorda, diagnostyki i ustawień. Program nie zastępuje pulpitu KDE.
