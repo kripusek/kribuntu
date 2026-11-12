@@ -35,3 +35,9 @@ sudo bash install.sh
 ```
 
 Najpierw sprawdź go w maszynie wirtualnej. Skrypt instaluje pakiety systemowe i może zmienić konfigurację istniejącego systemu. Nie jest instalatorem ISO. Wi-Fi, czytnik linii papilarnych, uśpienie i aktualizacje firmware trzeba sprawdzić na docelowym laptopie.
+
+## Gaming i wygląd Kripusek
+
+Profil instaluje przez Flathub Steam, Discord, Heroic (Epic i GOG), OBS Studio i GIMP. Wykryto także Blender, Audacity, VLC, Inkscape i narzędzia deweloperskie na komputerze źródłowym; ich dobór pozostaje do ustalenia. Dostępność gier Windows, funkcji anty-cheat i launcherów zależy od konkretnej gry. Steam z Flathub jest pakietem społecznościowym; dostęp do biblioteki na innym dysku może wymagać dodatkowych uprawnień Flatpak.
+
+Pierwszy motyw to czarno-czerwona tapeta `theme/kribuntu.svg`. Instalator kopiuje ją do `/usr/local/share/wallpapers/kribuntu.svg`; wybierz ją ręcznie w ustawieniach pulpitu KDE. Pozostałe elementy motywu są do opracowania.
