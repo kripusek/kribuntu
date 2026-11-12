@@ -8,6 +8,7 @@ if [[ ${XDG_CURRENT_DESKTOP:-} != *KDE* ]]; then
   echo 'Uruchom w sesji KDE Plasma.' >&2
   exit 1
 fi
+plasma-apply-desktoptheme breeze-dark
 plasma-apply-colorscheme KribuntuDark
 plasma-apply-wallpaperimage /usr/local/share/wallpapers/kribuntu.png
 echo 'Zastosowano kolory i tapetę Kribuntu.'

@@ -42,3 +42,14 @@ Profil instaluje przez Flathub Steam, Discord, Heroic (Epic i GOG), OBS Studio i
 
 Motyw zawiera tapetę `theme/kribuntu-ubuntu.png` i ciemny schemat kolorów `KribuntuDark`. Po uruchomieniu `sudo bash install.sh` można zastosować je w sesji KDE poleceniem `bash apply-theme.sh`. Integracja jako domyślnego motywu obrazu wymaga dalszych testów.
 Oryginalna animacja postaci Kripusek znajduje się w `theme/kripusek.gif` i pochodzi z osobistej strony autora. Aktualna tapeta jest wersją wstępną; integracja postaci z tapetą i pełnym motywem KDE pozostaje do wykonania.
+
+## Aktualizator na zainstalowanym systemie
+
+Na komputerze z Ubuntu/Kubuntu 24.04 i KDE otwórz Konsole i wykonaj:
+
+```bash
+git clone https://github.com/kripusek/kribuntu.git ~/kribuntu-source
+bash ~/kribuntu-source/setup-updater.sh
+```
+
+System poprosi o hasło administratora. Potem w menu aplikacji uruchom **Aktualizacje Kribuntu**, aby pobrać nowsze pliki i wybrać zastosowanie ciemnego motywu, kolorów i tapety. W menu pojawi się też **Kribuntu — tryb gier**, uruchamiający interfejs Steam; wymaga Steama z Flathub. Aktualizator nie instaluje pełnych aktualizacji Ubuntu — te nadal obsługuje Discover. W razie problemów aktualizator można wywołać w terminalu jako `kribuntu-update`.

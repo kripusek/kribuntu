@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Aktualizacje Kribuntu
+Comment=Pobierz aktualizacje motywu i narzędzi Kribuntu
+Exec=/usr/local/bin/kribuntu-update
+Icon=system-software-update
+Categories=System;Settings;
+Terminal=false

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Kribuntu — tryb gier
+Comment=Uruchom Steam w trybie pełnoekranowym
+Exec=flatpak run com.valvesoftware.Steam -gamepadui
+Icon=com.valvesoftware.Steam
+Categories=Game;
+Terminal=false
