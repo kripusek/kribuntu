@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Kribuntu — test sprzętu
+Exec=/usr/local/bin/kribuntu-hardware-check
+Icon=utilities-system-monitor
+Categories=System;
+Terminal=false

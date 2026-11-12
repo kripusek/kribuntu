@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -u
+report=$(mktemp)
+trap 'rm -f "$report"' EXIT
+{
+  echo 'KRIBUNTU — WSTĘPNY TEST SPRZĘTU'
+  echo
+  echo 'Sieć:'
+  nmcli -t -f DEVICE,TYPE,STATE device status 2>/dev/null || echo 'Nie udało się odczytać stanu sieci.'
+  echo
+  echo 'Kamera i urządzenia wideo:'
+  if command -v v4l2-ctl >/dev/null; then v4l2-ctl --list-devices 2>/dev/null || echo 'Nie wykryto urządzenia wideo.'; else echo 'Brak narzędzia v4l2-ctl.'; fi
+  echo
+  echo 'Czytnik odcisków:'
+  if command -v fprintd-list >/dev/null; then timeout 15 fprintd-list "$USER" 2>&1 || true; else echo 'Brak fprintd.'; fi
+  echo
+  echo 'Urządzenia USB (do identyfikacji czytnika i kamery):'
+  lsusb 2>/dev/null || echo 'Nie udało się odczytać listy USB.'
+  echo
+  echo 'Uwaga: wykrycie kamery IR nie potwierdza działania rozpoznawania twarzy. Odcisk wymaga zgodnego czytnika i osobnego zapisania palca. Dźwięk i kamerę sprawdź w sesji próbnej.'
+} > "$report"
+kdialog --title 'Kribuntu — test sprzętu' --textbox "$report" 850 600
