@@ -13,8 +13,10 @@ install -Dm644 "$repo/theme/KribuntuDark.colors" /usr/share/color-schemes/Kribun
 install -Dm755 "$repo/apply-theme.sh" /usr/local/bin/kribuntu-apply-theme
 install -Dm755 "$repo/hardware/kribuntu-hardware-check" /usr/local/bin/kribuntu-hardware-check
 install -Dm644 "$repo/hardware/kribuntu-hardware-check.desktop" /usr/local/share/applications/kribuntu-hardware-check.desktop
-install -Dm755 "$repo/updater/update-root.sh" /usr/local/libexec/kribuntu-update-root
-install -Dm755 "$repo/updater/update-gui.sh" /usr/local/bin/kribuntu-update
+install -Dm755 "$repo/updater/update-root.sh" /usr/local/libexec/kribuntu-update-root.new
+mv -f /usr/local/libexec/kribuntu-update-root.new /usr/local/libexec/kribuntu-update-root
+install -Dm755 "$repo/updater/update-gui.sh" /usr/local/bin/kribuntu-update.new
+mv -f /usr/local/bin/kribuntu-update.new /usr/local/bin/kribuntu-update
 install -Dm644 "$repo/updater/kribuntu-update.desktop" /usr/local/share/applications/kribuntu-update.desktop
 install -Dm644 "$repo/updater/kribuntu-gaming.desktop" /usr/local/share/applications/kribuntu-gaming.desktop
 install -Dm755 "$repo/center/kribuntu-center.py" /usr/local/bin/kribuntu-center
