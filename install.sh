@@ -11,7 +11,7 @@ if [[ ${ID:-} != ubuntu || ${VERSION_ID:-} != 24.04 ]]; then
 fi
 packages=(kubuntu-desktop fwupd power-profiles-daemon git python3-venv libreoffice okular gwenview ark spectacle flatpak plasma-discover-backend-flatpak)
 apt-get update
-apt-get install "${packages[@]}"
+apt-get install -y "${packages[@]}"
 flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 flatpak install --system --noninteractive flathub com.valvesoftware.Steam com.discordapp.Discord com.heroicgameslauncher.hgl com.obsproject.Studio org.gimp.GIMP
 install -Dm644 "$(dirname "$(realpath "$0")")/theme/kribuntu-ubuntu.png" /usr/local/share/wallpapers/kribuntu.png
