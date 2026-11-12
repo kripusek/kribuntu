@@ -1,0 +1,18 @@
+desktop-image: "background.png"
+title-text: "KRIPUSEK BOOT MENU"
+title-color: "#ffffff"
+message-color: "#ffffff"
++ boot_menu {
+  left = 8%
+  width = 52%
+  top = 27%
+  height = 55%
+  item_color = "#ffffff"
+  selected_item_color = "#ffffff"
+  selected_item_pixmap_style = "select_*.png"
+  item_height = 32
+  item_spacing = 4
+  item_padding = 4
+  item_icon_space = 0
+}
++ label { left = 8% top = 90% width = 84% height = 24 text = "@VTOY_HOTKEY_TIP@" color = "#ffffff" align = "left" }
