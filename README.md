@@ -1,4 +1,4 @@
-﻿# Kribuntu
+# Kribuntu
 
 Pomysł na osobisty system oparty na Ubuntu i KDE Plasma, przeznaczony dla laptopa Lenovo ThinkPad. Projekt jest na etapie planowania: nie zawiera jeszcze obrazu ISO ani instalatora.
 
@@ -40,5 +40,5 @@ Najpierw sprawdź go w maszynie wirtualnej. Skrypt instaluje pakiety systemowe i
 
 Profil instaluje przez Flathub Steam, Discord, Heroic (Epic i GOG), OBS Studio i GIMP. Wykryto także Blender, Audacity, VLC, Inkscape i narzędzia deweloperskie na komputerze źródłowym; ich dobór pozostaje do ustalenia. Dostępność gier Windows, funkcji anty-cheat i launcherów zależy od konkretnej gry. Steam z Flathub jest pakietem społecznościowym; dostęp do biblioteki na innym dysku może wymagać dodatkowych uprawnień Flatpak.
 
-Pierwszy motyw to czarno-czerwona tapeta `theme/kribuntu.svg`. Instalator kopiuje ją do `/usr/local/share/wallpapers/kribuntu.svg`; wybierz ją ręcznie w ustawieniach pulpitu KDE. Pozostałe elementy motywu są do opracowania.
+Motyw zawiera tapetę `theme/kribuntu-ubuntu.png` i ciemny schemat kolorów `KribuntuDark`. Po uruchomieniu `sudo bash install.sh` można zastosować je w sesji KDE poleceniem `bash apply-theme.sh`. Integracja jako domyślnego motywu obrazu wymaga dalszych testów.
 Oryginalna animacja postaci Kripusek znajduje się w `theme/kripusek.gif` i pochodzi z osobistej strony autora. Aktualna tapeta jest wersją wstępną; integracja postaci z tapetą i pełnym motywem KDE pozostaje do wykonania.
