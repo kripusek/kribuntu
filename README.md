@@ -25,3 +25,13 @@ Na komputerze widać ślady pracy z Androidem, Arduino, PlatformIO, Pythonem, Do
 5. Dopiero potem opracować sposób budowania i testowania obrazu instalacyjnego.
 
 Nie instaluj jednocześnie konkurujących usług zarządzania energią bez sprawdzenia ich konfiguracji. Obsługa firmware i funkcji ThinkPada zależy od modelu.
+
+## Pierwszy prototyp
+
+Docelowy komputer: ThinkPad L16 Gen 1 z Ryzen 5 PRO. Pierwszą bazą jest Kubuntu 24.04 LTS. `install.sh` przygotowuje profil Kribuntu na istniejącym Ubuntu lub Kubuntu 24.04; wymaga internetu i uprawnień administratora:
+
+```bash
+sudo bash install.sh
+```
+
+Najpierw sprawdź go w maszynie wirtualnej. Skrypt instaluje pakiety systemowe i może zmienić konfigurację istniejącego systemu. Nie jest instalatorem ISO. Wi-Fi, czytnik linii papilarnych, uśpienie i aktualizacje firmware trzeba sprawdzić na docelowym laptopie.
