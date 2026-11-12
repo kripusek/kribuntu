@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -u
+marker="${XDG_CONFIG_HOME:-$HOME/.config}/kribuntu-theme-applied"
+[[ -e "$marker" ]] && exit 0
+sleep 10
+if plasma-apply-colorscheme KribuntuDark && plasma-apply-wallpaperimage /usr/local/share/wallpapers/kribuntu.png; then
+  mkdir -p "$(dirname "$marker")"
+  touch "$marker"
+fi

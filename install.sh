@@ -16,4 +16,6 @@ flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/
 flatpak install --system --noninteractive flathub com.valvesoftware.Steam com.discordapp.Discord com.heroicgameslauncher.hgl com.obsproject.Studio org.gimp.GIMP
 install -Dm644 "$(dirname "$(realpath "$0")")/theme/kribuntu-ubuntu.png" /usr/local/share/wallpapers/kribuntu.png
 install -Dm644 "$(dirname "$(realpath "$0")")/theme/KribuntuDark.colors" /usr/share/color-schemes/KribuntuDark.colors
+install -Dm755 "$(dirname "$(realpath "$0")")/theme/autostart/kribuntu-first-login" /usr/local/bin/kribuntu-first-login
+install -Dm644 "$(dirname "$(realpath "$0")")/theme/autostart/kribuntu-theme.desktop" /etc/skel/.config/autostart/kribuntu-theme.desktop
 echo 'Gotowe. Uruchom ponownie komputer; tapetę wybierz w ustawieniach pulpitu KDE.'
