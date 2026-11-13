@@ -5,8 +5,8 @@ if [[ ${EUID} -ne 0 ]]; then
   exit 1
 fi
 . /etc/os-release
-if [[ ${ID:-} != ubuntu || ${VERSION_ID:-} != 24.04 ]]; then
-  echo 'Ten profil wspiera obecnie Ubuntu i Kubuntu 24.04 LTS.' >&2
+if [[ ${ID:-} != ubuntu || ( ${VERSION_ID:-} != 24.04 && ${VERSION_ID:-} != 26.04 ) ]]; then
+  echo 'Ten profil wspiera obecnie Ubuntu i Kubuntu 24.04 oraz 26.04 LTS.' >&2
   exit 1
 fi
 packages=(kubuntu-desktop fwupd power-profiles-daemon git python3-venv libreoffice okular gwenview ark spectacle vlc audacity blender inkscape fprintd v4l-utils flatpak plasma-discover-backend-flatpak)
