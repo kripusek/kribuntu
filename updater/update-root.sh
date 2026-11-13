@@ -2,7 +2,7 @@
 set -euo pipefail
 if [[ $EUID -ne 0 ]]; then echo 'Uruchom przez sudo lub pkexec.' >&2; exit 1; fi
 . /etc/os-release
-if [[ ${ID:-} != ubuntu || ${VERSION_ID:-} != 24.04 ]]; then echo 'Aktualizator obsluguje Ubuntu/Kubuntu 24.04.' >&2; exit 1; fi
+if [[ ${ID:-} != ubuntu || ( ${VERSION_ID:-} != 24.04 && ${VERSION_ID:-} != 26.04 ) ]]; then echo 'Aktualizator obsluguje Ubuntu/Kubuntu 24.04 i 26.04.' >&2; exit 1; fi
 command -v git >/dev/null || { echo 'Brak git. Zainstaluj pakiet git.' >&2; exit 1; }
 work=$(mktemp -d /tmp/kribuntu-update.XXXXXXXX)
 trap 'rm -rf -- "$work"' EXIT

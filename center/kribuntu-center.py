@@ -32,7 +32,7 @@ class Center(QMainWindow):
             ('DISCORD', 'Rozmowy ze znajomymi', ['flatpak', 'run', 'com.discordapp.Discord']),
             ('AKTUALIZACJE', 'Motyw i narzędzia Kribuntu', ['/usr/local/bin/kribuntu-update']),
             ('TEST SPRZĘTU', 'Sieć, kamera i czytnik', ['/usr/local/bin/kribuntu-hardware-check']),
-            ('USTAWIENIA', 'Ustawienia KDE', ['systemsettings5']),
+            ('USTAWIENIA', 'Ustawienia KDE', [shutil.which('systemsettings') or 'systemsettings5']),
         ]
         for index, (name, desc, command) in enumerate(items):
             button = QPushButton(name + '\n' + desc)
