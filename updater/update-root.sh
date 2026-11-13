@@ -8,6 +8,7 @@ work=$(mktemp -d /tmp/kribuntu-update.XXXXXXXX)
 trap 'rm -rf -- "$work"' EXIT
 git clone --quiet --depth 1 --branch main https://github.com/kripusek/kribuntu.git "$work/repo"
 repo=$work/repo
+bash "$repo/install-system-branding.sh"
 install -Dm644 "$repo/theme/kribuntu-ubuntu.png" /usr/local/share/wallpapers/kribuntu.png
 install -Dm644 "$repo/theme/KribuntuDark.colors" /usr/share/color-schemes/KribuntuDark.colors
 install -Dm755 "$repo/apply-theme.sh" /usr/local/bin/kribuntu-apply-theme
