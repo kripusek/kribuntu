@@ -1,5 +1,15 @@
 # Kribuntu
 
+## Aktualny obraz: 26.04.1 LTS
+
+Kribuntu ma eksperymentalny obraz na bazie Kubuntu 26.04.1 LTS dla komputerów amd64. Zawiera ekran startowy i instalator Kribuntu, Centrum Kribuntu, aktualizator oraz aplikacje Steam, Discord i Heroic z Flathub. Test UEFI doszedł do okna instalatora i sesji Plasma; pełna instalacja, aplikacje i sprzęt nie zostały jeszcze kompleksowo przetestowane. W sesji live może pojawić się standardowe okno powitalne KDE/Ubuntu.
+
+Obraz jest dzielony na części z powodu limitu wielkości pliku w GitHub Releases. Instrukcja połączenia i suma kontrolna znajdują się w opisie wydania. Nie należy używać poszczególnych części jako osobnych obrazów ISO.
+
+Czytnik odcisku jest obsługiwany przez fprintd, zależnie od sprzętu. Rozpoznawanie twarzy nie jest włączone. Skrypt `hardware/install-howdy-26.sh` przygotowuje testową wersję Howdy dla 26.04 bez modyfikowania PAM; przed włączeniem logowania wymaga konfiguracji kamery IR, zapisania twarzy oraz osobnego testu.
+
+Poniższe sekcje opisują także wcześniejszy prototyp i plan prac na bazie 24.04.
+
 Pomysł na osobisty system oparty na Ubuntu i KDE Plasma, przeznaczony dla laptopa Lenovo ThinkPad. Powstał eksperymentalny obraz ISO oparty na instalatorze Kubuntu; nie jest jeszcze wydaniem gotowym do instalacji na laptopie. Test instalacji trwa.
 
 ## Proponowany zestaw domyślny
