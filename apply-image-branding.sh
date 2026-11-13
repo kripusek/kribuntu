@@ -14,8 +14,11 @@ from pathlib import Path
 import sys
 root=Path(sys.argv[1])
 p=root/'usr/share/plasma/look-and-feel/org.kubuntu.desktop/contents/defaults'
-s=p.read_text().replace('ColorScheme=KubuntuLight','ColorScheme=KribuntuDark').replace('name=kubuntu','name=default').replace('Image=KubuntuLight','Image=Kribuntu').replace('defaultWallpaperTheme=KubuntuLight','defaultWallpaperTheme=Kribuntu')
+s=p.read_text().replace('ColorScheme=KubuntuLight','ColorScheme=KribuntuDark').replace('ColorScheme=BreezeLight','ColorScheme=KribuntuDark').replace('name=kubuntu','name=default').replace('Image=KubuntuLight','Image=Kribuntu').replace('Image=Kubuntu\n','Image=Kribuntu\n').replace('defaultWallpaperTheme=KubuntuLight','defaultWallpaperTheme=Kribuntu')
 p.write_text(s)
+p=root/'usr/share/plasma/layout-templates/org.kubuntu.desktop.defaultPanel/contents/layout.js'
+if p.exists():
+    p.write_text(p.read_text().replace('start-here-kubuntu', 'start-here-kribuntu'))
 p=root/'etc/calamares/branding/kubuntu/branding.desc'
 s=p.read_text().replace('productName:         Kubuntu','productName:         Kribuntu').replace('shortProductName:    Kubuntu','shortProductName:    Kribuntu').replace('versionedName:       Kubuntu','versionedName:       Kribuntu').replace('shortVersionedName:  Kubuntu','shortVersionedName:  Kribuntu').replace('SidebarBackground:    "#6C7B93"','SidebarBackground:    "#1c1c25"').replace('SidebarTextCurrent:   "#0068C8"','SidebarTextCurrent:   "#ef344f"')
 s=s.replace('bootloaderEntryName: Kubuntu','bootloaderEntryName: Kribuntu').replace('productLogo:         "logo.png"','productLogo:         "logo-kribuntu.svg"').replace('productIcon:         "icon.png"','productIcon:         "logo-kribuntu.svg"').replace('productWelcome:      "welcome.png"','productWelcome:      "kribuntu-wallpaper.png"').replace('https://kubuntu.org/contact/','https://github.com/kripusek/kribuntu').replace('https://kubuntu.org/','https://github.com/kripusek/kribuntu')

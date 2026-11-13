@@ -11,7 +11,7 @@ Presentation {
                 anchors.left: parent.left; anchors.leftMargin: 48
                 anchors.verticalCenter: parent.verticalCenter; spacing: 20
                 Text { text: "KRIBUNTU"; color: "white"; font.pixelSize: 52; font.bold: true }
-                Text { text: "Twoj system. Twoje gry. Twoj Kripusek."; color: "#ff596d"; font.pixelSize: 24 }
+                Text { text: "Twoj system. Twoje gry."; color: "#ff596d"; font.pixelSize: 24 }
                 Text { text: "Trwa instalacja. Dziekujemy za cierpliwosc."; color: "white"; font.pixelSize: 18 }
             }
         }
