@@ -254,19 +254,12 @@ class GameScan(QRunnable):
 
 class LaunchCard(QPushButton):
     def __init__(self, title, description, index):
-        super().__init__()
+        super().__init__(title + '\n' + description + '\n\nOTWÓRZ  →')
         self.setObjectName('launchCard')
         self.setAccessibleName(title + ': ' + description)
         self.setCursor(Qt.PointingHandCursor)
         self.setMinimumHeight(130)
-        layout = QVBoxLayout(self); layout.setContentsMargins(17, 15, 17, 15); layout.setSpacing(5)
-        number = QLabel(f'{index:02d}  /  KRIBUNTU'); number.setObjectName('cardEyebrow')
-        name = QLabel(title); name.setObjectName('cardTitle')
-        detail = QLabel(description); detail.setObjectName('cardDetail'); detail.setWordWrap(True)
-        action = QLabel('OTWÓRZ  →'); action.setObjectName('cardAction')
-        for label in (number, name, detail, action):
-            label.setAttribute(Qt.WA_TransparentForMouseEvents)
-        layout.addWidget(number); layout.addWidget(name); layout.addWidget(detail); layout.addStretch(); layout.addWidget(action)
+        self.setToolTip(description)
 
 
 class Center(QMainWindow):
@@ -327,6 +320,11 @@ class Center(QMainWindow):
             ('AKTUALIZACJE', 'Motyw i narzędzia Kribuntu', ['/usr/local/bin/kribuntu-update']),
             ('TEST SPRZĘTU', 'Sieć, kamera i czytnik', ['/usr/local/bin/kribuntu-hardware-check']),
             ('USTAWIENIA', 'Ustawienia KDE', [shutil.which('systemsettings') or 'systemsettings5']),
+            ('BLENDER', 'Modele 3D i animacje', ['blender']),
+            ('OBS STUDIO', 'Nagrywanie i streaming', ['flatpak', 'run', 'com.obsproject.Studio']),
+            ('AUDACITY', 'Nagrywanie i edycja dźwięku', ['audacity']),
+            ('GIMP', 'Grafika i tekstury', ['flatpak', 'run', 'org.gimp.GIMP']),
+            ('INKSCAPE', 'Grafika wektorowa', ['inkscape']),
         ]
         for index, (name, desc, cmd) in enumerate(items):
             button = LaunchCard(name, desc, index + 1)
@@ -414,7 +412,7 @@ class Center(QMainWindow):
           QPushButton { background:#25232a; border:1px solid #48414b; border-radius:10px; padding:11px 14px; text-align:left; font-size:13px; font-weight:700; min-height:30px; }
           QPushButton:hover { background:#3c242c; border:1px solid #bd4659; }
           QPushButton:focus { border:2px solid #ff6679; }
-          QPushButton#launchCard { background:#1c1b20; border:1px solid #353039; border-radius:14px; padding:0; }
+          QPushButton#launchCard { background:#1c1b20; border:1px solid #353039; border-radius:14px; padding:16px; color:#f5e9ed; font-size:13px; }
           QPushButton#launchCard:hover { background:#302127; border:1px solid #bb4659; }
           QPushButton#launchCard:focus { border:2px solid #ff6679; }
           QPushButton#launchCard QLabel { background:transparent; border:none; }
