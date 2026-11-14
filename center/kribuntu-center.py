@@ -12,8 +12,9 @@ import time
 sys.path.insert(0, '/usr/local/lib/kribuntu')
 from kribuntu_steam import steam_downloads
 
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtWidgets import (QApplication, QGridLayout, QHBoxLayout, QLabel,
+from PyQt5.QtCore import Qt, QTimer, QSize, QSettings
+from PyQt5.QtGui import QMovie
+from PyQt5.QtWidgets import (QApplication, QCheckBox, QGridLayout, QHBoxLayout, QLabel,
     QMainWindow, QMessageBox, QPushButton, QScrollArea, QTabWidget, QVBoxLayout, QWidget)
 
 HOME = Path.home()
@@ -167,8 +168,22 @@ class Center(QMainWindow):
         self.setMinimumSize(680, 520)
         base = QWidget(); self.setCentralWidget(base)
         outer = QVBoxLayout(base); outer.setContentsMargins(32, 26, 32, 26); outer.setSpacing(14)
-        title = QLabel('KRIBUNTU'); title.setObjectName('title'); outer.addWidget(title)
-        subtitle = QLabel('Twój laptop, gry i ostatnie działania'); subtitle.setObjectName('subtitle'); outer.addWidget(subtitle)
+        header = QHBoxLayout(); title_area = QVBoxLayout()
+        title = QLabel('KRIBUNTU'); title.setObjectName('title'); title_area.addWidget(title)
+        subtitle = QLabel('Twój laptop, gry i ostatnie działania'); subtitle.setObjectName('subtitle'); title_area.addWidget(subtitle)
+        title_area.addStretch(); header.addLayout(title_area, 1)
+        self.settings = QSettings('Kribuntu', 'Center')
+        mascot_path = Path('/usr/local/share/kribuntu/kripusek.gif')
+        if not mascot_path.is_file():
+            mascot_path = Path(__file__).resolve().parent.parent / 'theme/kripusek.gif'
+        self.movie = QMovie(str(mascot_path))
+        if self.movie.isValid():
+            mascot_area = QVBoxLayout(); mascot = QLabel(); mascot.setFixedSize(76, 76)
+            self.movie.setScaledSize(QSize(76, 76)); mascot.setMovie(self.movie); mascot_area.addWidget(mascot, alignment=Qt.AlignHCenter)
+            animation = QCheckBox('Animacja'); animation.setChecked(self.settings.value('animate_mascot', True, type=bool))
+            animation.toggled.connect(self.set_animation); mascot_area.addWidget(animation); header.addLayout(mascot_area)
+            self.set_animation(animation.isChecked(), save=False)
+        outer.addLayout(header)
         self.tabs = QTabWidget(); outer.addWidget(self.tabs)
         home = QWidget(); layout = QVBoxLayout(home); grid = QGridLayout(); layout.addLayout(grid)
         items = [
@@ -227,6 +242,15 @@ class Center(QMainWindow):
         self.previous = None
         self.previous_cpu = None
         self.refresh(); self.timer = QTimer(self); self.timer.timeout.connect(self.refresh); self.timer.start(15000)
+
+    def set_animation(self, enabled, save=True):
+        if enabled:
+            self.movie.start()
+        else:
+            self.movie.stop()
+            self.movie.jumpToFrame(0)
+        if save:
+            self.settings.setValue('animate_mascot', enabled)
 
     def refresh(self):
         charge, temp, camera, storage, audio = snapshot()
