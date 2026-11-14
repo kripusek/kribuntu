@@ -12,6 +12,8 @@ bash "$repo/install-system-branding.sh"
 install -Dm644 "$repo/theme/kribuntu-ubuntu.png" /usr/local/share/wallpapers/kribuntu.png
 install -Dm644 "$repo/theme/KribuntuDark.colors" /usr/share/color-schemes/KribuntuDark.colors
 install -Dm644 "$repo/theme/kripusek.gif" /usr/local/share/kribuntu/kripusek.gif
+install -d /usr/local/share/kribuntu/icons
+install -m644 "$repo"/center/icons/*.svg "$repo"/center/icons/LICENSE /usr/local/share/kribuntu/icons/
 install -Dm755 "$repo/apply-theme.sh" /usr/local/bin/kribuntu-apply-theme
 install -Dm755 "$repo/hardware/kribuntu-hardware-check" /usr/local/bin/kribuntu-hardware-check
 install -Dm644 "$repo/hardware/kribuntu-hardware-check.desktop" /usr/local/share/applications/kribuntu-hardware-check.desktop

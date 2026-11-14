@@ -14,12 +14,21 @@ from kribuntu_steam import steam_downloads
 from kribuntu_games import installed_games, launch_command
 
 from PyQt5.QtCore import Qt, QTimer, QSize, QSettings, QProcess, QObject, QRunnable, QThreadPool, pyqtSignal
-from PyQt5.QtGui import QMovie
+from PyQt5.QtGui import QIcon, QMovie
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabel,
     QListWidget, QListWidgetItem, QMainWindow, QMessageBox, QPushButton, QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget)
 
 HOME = Path.home()
 RETRO_DIR = HOME / 'Games/Retro'
+ICON_DIR = Path('/usr/local/share/kribuntu/icons')
+if not ICON_DIR.is_dir():
+    ICON_DIR = Path(__file__).resolve().parent / 'icons'
+
+
+def icon(name):
+    return QIcon(str(ICON_DIR / (name + '.svg')))
+
+
 RETRO_CORES = {'.gb': 'mgba', '.gbc': 'mgba', '.gba': 'mgba',
                '.sfc': 'snes9x', '.smc': 'snes9x',
                '.md': 'genesis_plus_gx', '.gen': 'genesis_plus_gx', '.sms': 'genesis_plus_gx', '.gg': 'genesis_plus_gx'}
@@ -263,6 +272,12 @@ class LaunchCard(QPushButton):
         self.setAccessibleName(title + ': ' + description)
         self.setCursor(Qt.PointingHandCursor)
         self.setMinimumHeight(130)
+        icon_name = {'STEAM': 'gamepad-2', 'HEROIC': 'joystick', 'DISCORD': 'headphones',
+                     'AKTUALIZACJE': 'refresh-cw', 'TEST SPRZĘTU': 'activity', 'USTAWIENIA': 'settings',
+                     'BLENDER': 'box', 'OBS STUDIO': 'video', 'AUDACITY': 'audio-lines',
+                     'GIMP': 'palette', 'INKSCAPE': 'pen-tool'}.get(title)
+        if icon_name:
+            self.setIcon(icon(icon_name)); self.setIconSize(QSize(28, 28))
         self.setToolTip(description)
 
 
@@ -379,8 +394,13 @@ class Center(QMainWindow):
         self.game_report.setWordWrap(True); self.game_report.setObjectName('card'); self.game_report.setTextInteractionFlags(Qt.TextSelectableByMouse); gl.addWidget(self.game_report)
         gl.addStretch(); self.games_page = QScrollArea(); self.games_page.setWidgetResizable(True); self.games_page.setWidget(games_tab)
         self.tabs.addTab(self.games_page, 'Gry')
-        retro_tab = QWidget(); rl = QVBoxLayout(retro_tab)
-        rh = QLabel('Kącik retro'); rh.setObjectName('heading'); rl.addWidget(rh)
+        retro_tab = QWidget(); rl = QVBoxLayout(retro_tab); rl.setContentsMargins(18, 18, 18, 18); rl.setSpacing(11)
+        retro_banner = QFrame(); retro_banner.setObjectName('retroHero'); rb = QVBoxLayout(retro_banner)
+        rb.setContentsMargins(20, 16, 20, 16)
+        retro_kicker = QLabel('KRIBUNTU  /  TWOJA KOLEKCJA'); retro_kicker.setObjectName('heroEyebrow'); rb.addWidget(retro_kicker)
+        rh = QLabel('Kącik retro'); rh.setObjectName('heroTitle'); rb.addWidget(rh)
+        retro_subtitle = QLabel('Stare światy. Nowe przygody.'); retro_subtitle.setObjectName('heroStatus'); rb.addWidget(retro_subtitle)
+        rl.addWidget(retro_banner)
         rn = QLabel('Twoje gry retro w jednym miejscu. Włóż własne pliki gier do folderu Retro i odśwież listę. Obsługiwane: Game Boy, Game Boy Color, Game Boy Advance, SNES, Mega Drive, Master System i Game Gear.')
         rn.setWordWrap(True); rl.addWidget(rn)
         self.retro_status = QLabel(); self.retro_status.setWordWrap(True); rl.addWidget(self.retro_status)
@@ -394,6 +414,14 @@ class Center(QMainWindow):
         retro_folder = QPushButton('Otwórz folder gier'); retro_folder.clicked.connect(self.open_retro_folder); retro_more.addWidget(retro_folder)
         retro_app = QPushButton('Otwórz RetroArch'); retro_app.clicked.connect(lambda: self.launch(['retroarch'], 'RetroArch')); retro_more.addWidget(retro_app)
         rl.addLayout(retro_more)
+        console_heading = QLabel('KONSOLE  /  EMULATORY'); console_heading.setObjectName('sectionEyebrow'); rl.addWidget(console_heading)
+        consoles = QHBoxLayout()
+        for label, cmd in [('Wii + GameCube  ·  Dolphin', ['dolphin-emu']),
+                           ('Wii U  ·  Cemu', ['flatpak', 'run', 'info.cemu.Cemu']),
+                           ('Switch  ·  Eden', [str(HOME / '.local/opt/kribuntu/eden-v0.2.1.AppImage')])]:
+            button = QPushButton(label); button.setIcon(icon('gamepad-2')); button.setIconSize(QSize(20, 20))
+            button.clicked.connect(lambda checked=False, c=cmd, n=label: self.launch(c, n)); consoles.addWidget(button)
+        rl.addLayout(consoles)
         retro_note = QLabel('Inne konsole i formaty możesz skonfigurować bezpośrednio w RetroArch. Gry i firmware nie są dołączone.'); retro_note.setWordWrap(True); rl.addWidget(retro_note)
         retro_scroll = QScrollArea(); retro_scroll.setWidgetResizable(True); retro_scroll.setWidget(retro_tab)
         self.tabs.addTab(retro_scroll, 'Retro'); self.refresh_retro()
@@ -434,7 +462,9 @@ class Center(QMainWindow):
           QPushButton { background:#25232a; border:1px solid #48414b; border-radius:10px; padding:11px 14px; text-align:left; font-size:13px; font-weight:700; min-height:30px; }
           QPushButton:hover { background:#3c242c; border:1px solid #bd4659; }
           QPushButton:focus { border:2px solid #ff6679; }
-          QPushButton#launchCard { background:#1c1b20; border:1px solid #353039; border-radius:14px; padding:16px; color:#f5e9ed; font-size:13px; }
+          QFrame#retroHero { background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #69152c,stop:0.55 #301925,stop:1 #201a28); border:1px solid #84334a; border-radius:16px; }
+          QFrame#retroHero QLabel { background:transparent; border:none; }
+          QPushButton#launchCard { background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #30202a,stop:1 #19191f); border:1px solid #50303c; border-radius:14px; padding:16px; color:#f5e9ed; font-size:13px; }
           QPushButton#launchCard:hover { background:#302127; border:1px solid #bb4659; }
           QPushButton#launchCard:focus { border:2px solid #ff6679; }
           QPushButton#launchCard QLabel { background:transparent; border:none; }
@@ -456,6 +486,9 @@ class Center(QMainWindow):
           QSpinBox { background:#25232a; border:1px solid #5a4b55; border-radius:7px; padding:6px; }
           QCheckBox { color:#c9c1c9; font-size:11px; }
         ''')
+        for index, name in enumerate(('house', 'laptop', 'activity', 'gamepad-2', 'joystick', 'clock', 'download')):
+            self.tabs.setTabIcon(index, icon(name))
+        self.tabs.setIconSize(QSize(16, 16))
         self.previous = None
         self.previous_cpu = None
         self.camera_job = None

@@ -69,6 +69,8 @@ Centrum odczytuje lokalne listy zainstalowanych gier Steama i Heroica (Epic, GOG
 
 Zakładka **Retro** wyświetla własne pliki gier z `~/Games/Retro`. Do uruchamiania obsługiwanych formatów potrzebne są pakiety `retroarch`, `libretro-mgba`, `libretro-snes9x` i `libretro-genesisplusgx`. Same gry oraz firmware nie są dołączone do Kribuntu. Pakiety instalowane są osobno; aktualizator Centrum ich nie instaluje.
 
+Skróty do Dolphin (Wii i GameCube), Cemu (Wii U) i Eden (Switch) uruchamiają osobno zainstalowane emulatory. Skrót Eden szuka AppImage `~/.local/opt/kribuntu/eden-v0.2.1.AppImage`. Zgodność i wydajność zależą od gry i sprzętu. Centrum używa ikon [Lucide](https://github.com/lucide-icons/lucide), których licencja znajduje się w `center/icons/LICENSE`.
+
 W Centrum zakładka **Laptop i kamera** pokazuje baterię, dostępne temperatury, procesy i stan przełącznika kamery IR dla Discorda. Gaze i Discord mogą rywalizować o tę samą kamerę; przełącznik nie zmienia konfiguracji logowania. Zakładka **Ślady** zapisuje lokalnie tylko działania uruchomione w Centrum i powiadomienia Steama, a nie historię całego systemu. Wskazania procesów pokazują wykorzystanie CPU od poprzedniego odczytu (100% oznacza jeden rdzeń).
 
 W zakładce **Ślady** można cofnąć ostatnią potwierdzoną zmianę stanu przełącznika kamery IR wykonaną przez Centrum. Cofanie nie nastąpi, jeśli aktualny stan różni się od zapisanego stanu po tej zmianie. Nie jest to przywracanie dowolnych zmian systemu.
