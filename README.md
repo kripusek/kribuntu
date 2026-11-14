@@ -69,6 +69,8 @@ W Centrum zakładka **Laptop i kamera** pokazuje baterię, dostępne temperatury
 
 W zakładce **Ślady** można cofnąć ostatnią potwierdzoną zmianę stanu przełącznika kamery IR wykonaną przez Centrum. Cofanie nie nastąpi, jeśli aktualny stan różni się od zapisanego stanu po tej zmianie. Nie jest to przywracanie dowolnych zmian systemu.
 
+W zakładce **Gry** Kripusek sprawdza znaną poprawkę Proton/DXVK dla The Talos Principle w domyślnym katalogu Heroica. Samodzielnie nie zmienia plików gry; obecność poprawki nie gwarantuje uruchomienia.
+
 Centrum wyświetla animację Kripuska, którą można zatrzymać przełącznikiem w nagłówku.
 
 Zakładka **Pobieranie** odczytuje liczby zapisane przez Steam w domyślnych bibliotekach użytkownika (Flatpak i standardowa lokalizacja). Lekka usługa użytkownika sprawdza je w tle i wysyła powiadomienie, gdy zauważy przejście pobierania oraz przygotowania do stanu zakończonego. Biblioteki w innych katalogach nie są jeszcze wykrywane. Stan usługi jest widoczny w Centrum.

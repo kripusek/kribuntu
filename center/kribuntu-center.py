@@ -135,6 +135,28 @@ def save_camera_undo(before, after):
         return False
 
 
+def talos_report(home):
+    config = home / 'Games/Heroic/The Talos Principle/Content/Talos/Config/CheckDriver.lua'
+    backup = config.with_name('CheckDriver.lua.before-proton-fix')
+    if not config.is_file():
+        return ('Nie znaleziono pliku gry w domyślnym katalogu Heroica. '
+                'Gra może być zainstalowana gdzie indziej; nie zmieniono żadnych plików.')
+    try:
+        content = config.read_text(encoding='utf-8', errors='replace')
+    except OSError:
+        return 'Plik gry istnieje, ale nie udało się go odczytać. Nie zmieniono żadnych plików.'
+    marker = ('local bProtonSyntheticAMD' in content and 'gfx_iDriverVersion==1011' in content
+              and 'not bProtonSyntheticAMD' in content)
+    if marker:
+        result = ('W pliku wykryto poprawkę porównania wersji sterownika dla Proton/DXVK. '
+                  'Obecność poprawki nie potwierdza, że gra uruchomi się poprawnie.')
+    else:
+        result = ('W pliku nie znaleziono rozpoznawalnej poprawki porównania wersji sterownika. '
+                  'Aktualizacja lub sprawdzenie plików gry mogło ją zastąpić; nie zmieniono gry.')
+    result += '\n\nKopia wcześniejszego pliku: ' + ('znaleziona.' if backup.is_file() else 'nie znaleziona.')
+    return result
+
+
 def snapshot():
     power = Path('/sys/class/power_supply')
     batteries = sorted(power.glob('BAT*')) if power.exists() else []
@@ -254,6 +276,15 @@ class Center(QMainWindow):
         scroll = QScrollArea(); scroll.setWidgetResizable(True); scroll.setWidget(self.log); ll.addWidget(scroll)
         undo_button = QPushButton('Cofnij ostatnią zmianę kamery IR z Centrum'); undo_button.clicked.connect(self.undo_camera); ll.addWidget(undo_button)
         self.tabs.addTab(logtab, 'Ślady')
+        games_tab = QWidget(); gl = QVBoxLayout(games_tab)
+        gh = QLabel('Kripusek sprawdza gry'); gh.setObjectName('heading'); gl.addWidget(gh)
+        gd = QLabel('Sprawdź znany problem bez automatycznej zmiany plików. Pierwsza diagnoza dotyczy The Talos Principle w domyślnym katalogu Heroica.')
+        gd.setWordWrap(True); gl.addWidget(gd)
+        check_talos = QPushButton('Sprawdź poprawkę The Talos Principle')
+        check_talos.clicked.connect(self.check_talos); gl.addWidget(check_talos)
+        self.game_report = QLabel('Wybierz sprawdzenie, aby zobaczyć wynik.'); self.game_report.setTextFormat(Qt.PlainText)
+        self.game_report.setWordWrap(True); self.game_report.setObjectName('card'); self.game_report.setTextInteractionFlags(Qt.TextSelectableByMouse); gl.addWidget(self.game_report)
+        gl.addStretch(); self.tabs.addTab(games_tab, 'Gry')
         downloads_tab = QWidget(); dl = QVBoxLayout(downloads_tab)
         dh = QLabel('Kripusek pilnuje Steama'); dh.setObjectName('heading'); dl.addWidget(dh)
         dn = QLabel('Dane pochodzą z plików lokalnych bibliotek Steam w domyślnych lokalizacjach. Powiadomienia wysyła usługa użytkownika; inne biblioteki mogą nie być widoczne.')
@@ -335,6 +366,11 @@ class Center(QMainWindow):
         else:
             advice.append('Nie udało się ustalić stanu wyciszenia. Sprawdź ustawienia dźwięku.')
         QMessageBox.information(self, 'Kripusek wyjaśnia', '\n\n'.join(advice))
+
+    def check_talos(self):
+        self.game_report.setText(talos_report(HOME))
+        record('Sprawdzono plik The Talos Principle')
+        self.log.setText(history())
 
     def toggle_camera(self):
         script = HOME / '.local/bin/ir-camera'
