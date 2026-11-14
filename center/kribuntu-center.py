@@ -12,13 +12,14 @@ import time
 sys.path.insert(0, '/usr/local/lib/kribuntu')
 from kribuntu_steam import steam_downloads
 
-from PyQt5.QtCore import Qt, QTimer, QSize, QSettings
+from PyQt5.QtCore import Qt, QTimer, QSize, QSettings, QProcess
 from PyQt5.QtGui import QMovie
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QGridLayout, QHBoxLayout, QLabel,
     QMainWindow, QMessageBox, QPushButton, QScrollArea, QTabWidget, QVBoxLayout, QWidget)
 
 HOME = Path.home()
 STATE = Path(os.environ.get('XDG_STATE_HOME', HOME / '.local/state')) / 'kribuntu' / 'activity.jsonl'
+UNDO = STATE.parent / 'camera-undo.json'
 
 
 def command(*args, timeout=2):
@@ -101,6 +102,37 @@ def history():
         return '\n'.join(entries) or 'Tu pojawią się działania wykonane w Centrum.'
     except OSError:
         return 'Tu pojawią się działania wykonane w Centrum.'
+
+
+def camera_running():
+    rc, state = command('systemctl', '--user', 'is-active', 'ir-camera.service')
+    if rc == 0 and state == 'active':
+        return True
+    if state in ('inactive', 'failed'):
+        return False
+    return None
+
+
+def load_camera_undo():
+    try:
+        data = json.loads(UNDO.read_text(encoding='utf-8'))
+        if (isinstance(data, dict) and isinstance(data.get('before'), bool)
+                and isinstance(data.get('after'), bool) and data['before'] != data['after']):
+            return data
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def save_camera_undo(before, after):
+    try:
+        UNDO.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        temporary = UNDO.with_suffix('.tmp')
+        temporary.write_text(json.dumps({'before': before, 'after': after}), encoding='utf-8')
+        os.replace(temporary, UNDO)
+        return True
+    except OSError:
+        return False
 
 
 def snapshot():
@@ -220,6 +252,7 @@ class Center(QMainWindow):
         explain = QLabel('Zapis lokalny obejmuje tylko przyciski użyte w Centrum. Nie jest historią całego systemu.'); explain.setWordWrap(True); ll.addWidget(explain)
         self.log = QLabel(); self.log.setWordWrap(True); self.log.setAlignment(Qt.AlignTop | Qt.AlignLeft); self.log.setObjectName('card'); self.log.setTextInteractionFlags(Qt.TextSelectableByMouse)
         scroll = QScrollArea(); scroll.setWidgetResizable(True); scroll.setWidget(self.log); ll.addWidget(scroll)
+        undo_button = QPushButton('Cofnij ostatnią zmianę kamery IR z Centrum'); undo_button.clicked.connect(self.undo_camera); ll.addWidget(undo_button)
         self.tabs.addTab(logtab, 'Ślady')
         downloads_tab = QWidget(); dl = QVBoxLayout(downloads_tab)
         dh = QLabel('Kripusek pilnuje Steama'); dh.setObjectName('heading'); dl.addWidget(dh)
@@ -241,6 +274,7 @@ class Center(QMainWindow):
         ''')
         self.previous = None
         self.previous_cpu = None
+        self.camera_job = None
         self.refresh(); self.timer = QTimer(self); self.timer.timeout.connect(self.refresh); self.timer.start(15000)
 
     def set_animation(self, enabled, save=True):
@@ -309,8 +343,61 @@ class Center(QMainWindow):
             return
         if QMessageBox.question(self, 'Kamera IR', 'Przełączyć kamerę IR dla Discorda? Gdy jest włączona, Gaze może nie móc użyć kamery do logowania.') != QMessageBox.Yes:
             return
-        self.launch([str(script)], 'Przełącznik kamery IR dla Discorda')
-        QTimer.singleShot(2500, self.refresh)
+        before = camera_running()
+        if before is None:
+            QMessageBox.warning(self, 'Kamera IR', 'Nie udało się ustalić stanu usługi kamery. Nie zmieniono jej ustawień.')
+            return
+        self.run_camera_toggle(before, undoing=False)
+
+    def undo_camera(self):
+        entry = load_camera_undo()
+        if entry is None:
+            QMessageBox.information(self, 'Cofnij kamerę', 'Brak zmiany kamery z Centrum, którą można cofnąć.')
+            return
+        if camera_running() != entry['after']:
+            QMessageBox.warning(self, 'Cofnij kamerę', 'Stan kamery zmienił się od ostatniej operacji w Centrum. Sprawdź go przed kolejną zmianą.')
+            return
+        if QMessageBox.question(self, 'Cofnij kamerę', 'Przywrócić poprzedni stan kamery IR? Włączenie jej dla Discorda może zająć kamerę potrzebną Gaze.') != QMessageBox.Yes:
+            return
+        self.run_camera_toggle(entry['after'], undoing=True)
+
+    def run_camera_toggle(self, before, undoing):
+        script = HOME / '.local/bin/ir-camera'
+        if not script.is_file():
+            QMessageBox.warning(self, 'Kamera IR', 'Nie znaleziono przełącznika kamery Discorda.')
+            return
+        if self.camera_job is not None:
+            QMessageBox.information(self, 'Kamera IR', 'Poprzednia operacja kamery jeszcze trwa.')
+            return
+        job = QProcess(self)
+        self.camera_job = job
+        def finished(code, status):
+            after = camera_running()
+            if code == 0 and status == QProcess.NormalExit and isinstance(after, bool) and after != before:
+                if undoing:
+                    try:
+                        UNDO.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+                    record('Cofnięto zmianę kamery IR dla Discorda')
+                else:
+                    saved = save_camera_undo(before, after)
+                    record('Kamera IR dla Discorda: ' + ('włączona' if after else 'wyłączona'))
+                    if not saved:
+                        QMessageBox.warning(self, 'Kamera IR', 'Stan kamery zmieniono, ale nie udało się zapisać informacji do cofnięcia.')
+            else:
+                QMessageBox.warning(self, 'Kamera IR', 'Nie udało się potwierdzić zmiany stanu kamery. Sprawdź jej status i komunikaty systemu.')
+            self.camera_job = None
+            job.deleteLater()
+            self.refresh()
+        def failed(error):
+            if error == QProcess.FailedToStart:
+                self.camera_job = None
+                job.deleteLater()
+                QMessageBox.warning(self, 'Kamera IR', 'Nie udało się uruchomić przełącznika kamery.')
+        job.finished.connect(finished)
+        job.errorOccurred.connect(failed)
+        job.start(str(script), [])
 
     def launch(self, command_line, name):
         if not shutil.which(command_line[0]):

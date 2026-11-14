@@ -67,6 +67,8 @@ Po aktualizacji uruchom z menu **Centrum Kribuntu** — to okno z kafelkami gier
 
 W Centrum zakładka **Laptop i kamera** pokazuje baterię, dostępne temperatury, procesy i stan przełącznika kamery IR dla Discorda. Gaze i Discord mogą rywalizować o tę samą kamerę; przełącznik nie zmienia konfiguracji logowania. Zakładka **Ślady** zapisuje lokalnie tylko działania uruchomione w Centrum i powiadomienia Steama, a nie historię całego systemu. Wskazania procesów pokazują wykorzystanie CPU od poprzedniego odczytu (100% oznacza jeden rdzeń).
 
+W zakładce **Ślady** można cofnąć ostatnią potwierdzoną zmianę stanu przełącznika kamery IR wykonaną przez Centrum. Cofanie nie nastąpi, jeśli stan zmienił się w międzyczasie poza Centrum. Nie jest to przywracanie dowolnych zmian systemu.
+
 Centrum wyświetla animację Kripuska, którą można zatrzymać przełącznikiem w nagłówku.
 
 Zakładka **Pobieranie** odczytuje liczby zapisane przez Steam w domyślnych bibliotekach użytkownika (Flatpak i standardowa lokalizacja). Lekka usługa użytkownika sprawdza je w tle i wysyła powiadomienie, gdy zauważy przejście pobierania oraz przygotowania do stanu zakończonego. Biblioteki w innych katalogach nie są jeszcze wykrywane. Stan usługi jest widoczny w Centrum.
