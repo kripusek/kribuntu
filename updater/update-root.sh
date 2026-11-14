@@ -23,10 +23,13 @@ install -Dm644 "$repo/updater/kribuntu-gaming.desktop" /usr/local/share/applicat
 install -Dm644 "$repo/center/kribuntu_steam.py" /usr/local/lib/kribuntu/kribuntu_steam.py
 install -Dm755 "$repo/center/kribuntu-steam-watch.py" /usr/local/lib/kribuntu/kribuntu-steam-watch.py
 install -Dm644 "$repo/center/kribuntu-steam-watch.service" /usr/lib/systemd/user/kribuntu-steam-watch.service
+install -Dm755 "$repo/center/kribuntu-sleep-watch.py" /usr/local/lib/kribuntu/kribuntu-sleep-watch.py
+install -Dm644 "$repo/center/kribuntu-sleep-watch.service" /usr/lib/systemd/user/kribuntu-sleep-watch.service
 install -Dm755 "$repo/center/kribuntu-center.py" /usr/local/bin/kribuntu-center
 install -Dm644 "$repo/center/kribuntu-center.desktop" /usr/local/share/applications/kribuntu-center.desktop
 if command -v systemctl >/dev/null; then
   systemctl --global enable kribuntu-steam-watch.service || echo 'Nie udało się włączyć monitora Steama na przyszłe sesje.' >&2
+  systemctl --global enable kribuntu-sleep-watch.service || echo 'Nie udało się włączyć przypomnień po uśpieniu na przyszłe sesje.' >&2
 fi
 git -C "$repo" rev-parse --short HEAD > /usr/local/share/kribuntu-version
 command -v update-desktop-database >/dev/null && update-desktop-database /usr/local/share/applications || true
