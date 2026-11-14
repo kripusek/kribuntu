@@ -1,31 +1,122 @@
 #!/usr/bin/env python3
-"""Kribuntu launcher for the KDE desktop."""
+"""Centrum Kribuntu: gry, stan laptopa i diagnostyka."""
+import datetime
+import json
+import os
+from pathlib import Path
 import shutil
 import subprocess
 import sys
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication, QGridLayout, QLabel, QMainWindow, QMessageBox, QPushButton, QVBoxLayout, QWidget
+
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtWidgets import (QApplication, QGridLayout, QHBoxLayout, QLabel,
+    QMainWindow, QMessageBox, QPushButton, QScrollArea, QTabWidget, QVBoxLayout, QWidget)
+
+HOME = Path.home()
+STATE = Path(os.environ.get('XDG_STATE_HOME', HOME / '.local/state')) / 'kribuntu' / 'activity.jsonl'
+
+
+def command(*args, timeout=2):
+    try:
+        result = subprocess.run(args, capture_output=True, text=True, timeout=timeout, check=False)
+        return result.returncode, result.stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        return 127, ''
+
+
+def read(path):
+    try:
+        return Path(path).read_text().strip()
+    except (OSError, ValueError):
+        return ''
+
+
+def record(event):
+    try:
+        STATE.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        with STATE.open('a', encoding='utf-8') as stream:
+            stream.write(json.dumps({'time': datetime.datetime.now().isoformat(timespec='seconds'),
+                                     'event': event}, ensure_ascii=False) + '\n')
+    except OSError:
+        pass
+
+
+def history():
+    try:
+        with STATE.open(encoding='utf-8') as f:
+            rows = f.readlines()[-12:]
+        entries = []
+        for row in reversed(rows):
+            try:
+                item = json.loads(row)
+                entries.append(item['time'].replace('T', ' ') + '  ·  ' + item['event'])
+            except (ValueError, KeyError, TypeError):
+                continue
+        return '\n'.join(entries) or 'Tu pojawią się działania wykonane w Centrum.'
+    except OSError:
+        return 'Tu pojawią się działania wykonane w Centrum.'
+
+
+def snapshot():
+    power = Path('/sys/class/power_supply')
+    batteries = sorted(power.glob('BAT*')) if power.exists() else []
+    if batteries:
+        b = batteries[0]
+        capacity = read(b / 'capacity')
+        status = {'Charging': 'ładowanie', 'Discharging': 'na baterii', 'Full': 'naładowana',
+                  'Not charging': 'nie ładuje'}.get(read(b / 'status'), read(b / 'status') or 'stan nieznany')
+        charge = f'{capacity}% · {status}' if capacity else status
+        full, design = read(b / 'energy_full'), read(b / 'energy_full_design')
+        try:
+            if int(design) > 0:
+                charge += f'\nKondycja według baterii: {100 * int(full) / int(design):.0f}% pojemności projektowej'
+        except ValueError:
+            pass
+        start, end = read(b / 'charge_start_threshold'), read(b / 'charge_stop_threshold')
+        if start and end:
+            charge += f'\nProgi ładowania: {start}–{end}%'
+    else:
+        charge = 'Nie wykryto baterii'
+    sensors = []
+    for zone in Path('/sys/class/thermal').glob('thermal_zone*'):
+        typ, val = read(zone / 'type'), read(zone / 'temp')
+        try:
+            temp = int(val) / 1000
+            if typ.lower() in ('x86_pkg_temp', 'soc_thermal', 'acpitz') and 0 < temp < 120:
+                sensors.append((typ, temp))
+        except ValueError:
+            pass
+    temptext = ', '.join(f'{n}: {v:.0f}°C' for n, v in sensors[:2]) or 'Brak odczytu temperatury'
+    _, processes = command('ps', '-eo', 'pcpu=,comm=', '--sort=-pcpu')
+    top = [line.strip() for line in processes.splitlines()[:4] if line.strip()]
+    proc = '\n'.join(top) if top else 'Brak danych o procesach'
+    try:
+        disk = shutil.disk_usage(HOME)
+        storage = f'{disk.free / (1024 ** 3):.0f} GiB wolnego w systemie plików katalogu domowego'
+    except OSError:
+        storage = 'Brak odczytu wolnego miejsca'
+    rc, active = command('systemctl', '--user', 'is-active', 'ir-camera.service')
+    ir = rc == 0 and active == 'active'
+    _, gaze = command('systemctl', 'is-active', 'gazed.service')
+    camera = ('Kamera IR dla Discorda: WŁĄCZONA. Może zajmować kamerę potrzebną Gaze.' if ir else
+              'Kamera IR dla Discorda: wyłączona lub niedostępna.')
+    if gaze == 'active':
+        camera += '\nGaze: usługa działa. Rozpoznanie zależy od dostępności kamery.'
+    return charge, temptext, proc, camera, storage
+
 
 class Center(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Centrum Kribuntu')
-        self.resize(960, 600)
-        self.setMinimumSize(650, 440)
-        base = QWidget()
-        self.setCentralWidget(base)
-        outer = QVBoxLayout(base)
-        outer.setContentsMargins(38, 32, 38, 32)
-        outer.setSpacing(18)
-        title = QLabel('KRIBUNTU')
-        title.setObjectName('title')
-        outer.addWidget(title)
-        subtitle = QLabel('Twoje gry i narzędzia w jednym miejscu')
-        subtitle.setObjectName('subtitle')
-        outer.addWidget(subtitle)
-        grid = QGridLayout()
-        grid.setSpacing(14)
-        outer.addLayout(grid, 1)
+        self.resize(1000, 720)
+        self.setMinimumSize(680, 520)
+        base = QWidget(); self.setCentralWidget(base)
+        outer = QVBoxLayout(base); outer.setContentsMargins(32, 26, 32, 26); outer.setSpacing(14)
+        title = QLabel('KRIBUNTU'); title.setObjectName('title'); outer.addWidget(title)
+        subtitle = QLabel('Twój laptop, gry i ostatnie działania'); subtitle.setObjectName('subtitle'); outer.addWidget(subtitle)
+        self.tabs = QTabWidget(); outer.addWidget(self.tabs)
+        home = QWidget(); layout = QVBoxLayout(home); grid = QGridLayout(); layout.addLayout(grid)
         items = [
             ('STEAM', 'Tryb gier', ['flatpak', 'run', 'com.valvesoftware.Steam', '-gamepadui']),
             ('HEROIC', 'Epic Games i GOG', ['flatpak', 'run', 'com.heroicgameslauncher.hgl']),
@@ -34,31 +125,73 @@ class Center(QMainWindow):
             ('TEST SPRZĘTU', 'Sieć, kamera i czytnik', ['/usr/local/bin/kribuntu-hardware-check']),
             ('USTAWIENIA', 'Ustawienia KDE', [shutil.which('systemsettings') or 'systemsettings5']),
         ]
-        for index, (name, desc, command) in enumerate(items):
-            button = QPushButton(name + '\n' + desc)
-            button.setCursor(Qt.PointingHandCursor)
-            button.clicked.connect(lambda checked=False, cmd=command: self.launch(cmd))
+        for index, (name, desc, cmd) in enumerate(items):
+            button = QPushButton(name + '\n' + desc); button.setCursor(Qt.PointingHandCursor)
+            button.clicked.connect(lambda checked=False, c=cmd, n=name: self.launch(c, n))
             grid.addWidget(button, index // 3, index % 3)
+        layout.addStretch(); self.tabs.addTab(home, 'Start')
+        info = QWidget(); il = QVBoxLayout(info)
+        heading = QLabel('Co się dzieje na laptopie?'); heading.setObjectName('heading'); il.addWidget(heading)
+        note = QLabel('Bieżące odczyty pomagają znaleźć przyczynę. Same nie są diagnozą.'); note.setWordWrap(True); il.addWidget(note)
+        self.battery = QLabel(); self.temperature = QLabel(); self.processes = QLabel(); self.camera = QLabel(); self.storage = QLabel()
+        for widget in (self.battery, self.temperature, self.processes, self.camera, self.storage):
+            widget.setWordWrap(True); widget.setObjectName('card'); widget.setTextInteractionFlags(Qt.TextSelectableByMouse); il.addWidget(widget)
+        row = QHBoxLayout()
+        refresh = QPushButton('Odśwież'); refresh.clicked.connect(self.refresh); row.addWidget(refresh)
+        toggle = QPushButton('Kamera IR dla Discorda'); toggle.clicked.connect(self.toggle_camera); row.addWidget(toggle)
+        il.addLayout(row); il.addStretch()
+        info_scroll = QScrollArea(); info_scroll.setWidgetResizable(True); info_scroll.setWidget(info)
+        self.tabs.addTab(info_scroll, 'Laptop i kamera')
+        logtab = QWidget(); ll = QVBoxLayout(logtab)
+        lh = QLabel('Ostatnie działania w Centrum'); lh.setObjectName('heading'); ll.addWidget(lh)
+        explain = QLabel('Zapis lokalny obejmuje tylko przyciski użyte w Centrum. Nie jest historią całego systemu.'); explain.setWordWrap(True); ll.addWidget(explain)
+        self.log = QLabel(); self.log.setWordWrap(True); self.log.setAlignment(Qt.AlignTop | Qt.AlignLeft); self.log.setObjectName('card'); self.log.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        scroll = QScrollArea(); scroll.setWidgetResizable(True); scroll.setWidget(self.log); ll.addWidget(scroll)
+        self.tabs.addTab(logtab, 'Ślady')
         self.setStyleSheet('''
-            QMainWindow, QWidget { background: #14141c; color: #f7f7fa; font-family: sans-serif; }
-            QLabel#title { color: #ffffff; font-size: 34px; font-weight: 800; letter-spacing: 3px; }
-            QLabel#subtitle { color: #c4c4ce; font-size: 16px; }
-            QPushButton { background: #252631; border: 1px solid #494653; border-radius: 14px;
-              padding: 20px; text-align: left; font-size: 18px; font-weight: bold; min-height: 90px; }
-            QPushButton:hover, QPushButton:focus { background: #8d1f35; border: 2px solid #ff4e68; }
+          QMainWindow, QWidget { background:#14141c; color:#f7f7fa; font-family:sans-serif; }
+          QLabel#title { font-size:34px; font-weight:800; letter-spacing:3px; }
+          QLabel#subtitle { color:#c4c4ce; font-size:16px; }
+          QLabel#heading { font-size:22px; font-weight:bold; }
+          QLabel#card { background:#22232d; border:1px solid #48424c; border-radius:10px; padding:13px; font-size:14px; }
+          QPushButton { background:#252631; border:1px solid #494653; border-radius:10px; padding:14px; text-align:left; font-size:15px; font-weight:bold; min-height:38px; }
+          QPushButton:hover, QPushButton:focus { background:#8d1f35; border:2px solid #ff4e68; }
+          QTabBar::tab { background:#252631; padding:10px 22px; border-radius:6px; }
+          QTabBar::tab:selected { background:#a41d38; }
         ''')
+        self.refresh(); self.timer = QTimer(self); self.timer.timeout.connect(self.refresh); self.timer.start(15000)
 
-    def launch(self, command):
-        if not shutil.which(command[0]):
+    def refresh(self):
+        charge, temp, proc, camera, storage = snapshot()
+        self.battery.setText('BATERIA  ·  ' + charge)
+        self.temperature.setText('TEMPERATURA  ·  ' + temp)
+        self.processes.setText('PROCESY  ·  średni udział CPU od uruchomienia (%)\n' + proc)
+        self.camera.setText(camera)
+        self.storage.setText('DYSK  ·  ' + storage)
+        self.log.setText(history())
+
+    def toggle_camera(self):
+        script = HOME / '.local/bin/ir-camera'
+        if not script.is_file():
+            QMessageBox.information(self, 'Kamera IR', 'Nie znaleziono przełącznika kamery Discorda. Gaze nadal działa niezależnie.')
+            return
+        if QMessageBox.question(self, 'Kamera IR', 'Przełączyć kamerę IR dla Discorda? Gdy jest włączona, Gaze może nie móc użyć kamery do logowania.') != QMessageBox.Yes:
+            return
+        self.launch([str(script)], 'Przełącznik kamery IR dla Discorda')
+        QTimer.singleShot(2500, self.refresh)
+
+    def launch(self, command_line, name):
+        if not shutil.which(command_line[0]):
             QMessageBox.warning(self, 'Kribuntu', 'Brakuje programu potrzebnego do uruchomienia tej funkcji.')
             return
         try:
-            subprocess.Popen(command, start_new_session=True)
+            subprocess.Popen(command_line, start_new_session=True)
+            record('Uruchomiono: ' + name)
+            self.log.setText(history())
         except OSError as exc:
             QMessageBox.warning(self, 'Kribuntu', 'Nie udało się uruchomić aplikacji: ' + str(exc))
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    window = Center()
-    window.show()
+    window = Center(); window.show()
     sys.exit(app.exec_())
