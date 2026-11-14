@@ -19,6 +19,10 @@ from PyQt5.QtWidgets import (QApplication, QCheckBox, QFrame, QGridLayout, QHBox
     QListWidget, QListWidgetItem, QMainWindow, QMessageBox, QPushButton, QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget)
 
 HOME = Path.home()
+RETRO_DIR = HOME / 'Games/Retro'
+RETRO_CORES = {'.gb': 'mgba', '.gbc': 'mgba', '.gba': 'mgba',
+               '.sfc': 'snes9x', '.smc': 'snes9x',
+               '.md': 'genesis_plus_gx', '.gen': 'genesis_plus_gx', '.sms': 'genesis_plus_gx', '.gg': 'genesis_plus_gx'}
 STATE = Path(os.environ.get('XDG_STATE_HOME', HOME / '.local/state')) / 'kribuntu' / 'activity.jsonl'
 UNDO = STATE.parent / 'camera-undo.json'
 
@@ -375,6 +379,24 @@ class Center(QMainWindow):
         self.game_report.setWordWrap(True); self.game_report.setObjectName('card'); self.game_report.setTextInteractionFlags(Qt.TextSelectableByMouse); gl.addWidget(self.game_report)
         gl.addStretch(); self.games_page = QScrollArea(); self.games_page.setWidgetResizable(True); self.games_page.setWidget(games_tab)
         self.tabs.addTab(self.games_page, 'Gry')
+        retro_tab = QWidget(); rl = QVBoxLayout(retro_tab)
+        rh = QLabel('Kącik retro'); rh.setObjectName('heading'); rl.addWidget(rh)
+        rn = QLabel('Twoje gry retro w jednym miejscu. Włóż własne pliki gier do folderu Retro i odśwież listę. Obsługiwane: Game Boy, Game Boy Color, Game Boy Advance, SNES, Mega Drive, Master System i Game Gear.')
+        rn.setWordWrap(True); rl.addWidget(rn)
+        self.retro_status = QLabel(); self.retro_status.setWordWrap(True); rl.addWidget(self.retro_status)
+        self.retro_list = QListWidget(); self.retro_list.setObjectName('library'); self.retro_list.setMinimumHeight(170)
+        self.retro_list.itemDoubleClicked.connect(lambda _item: self.launch_retro()); rl.addWidget(self.retro_list)
+        retro_row = QHBoxLayout()
+        retro_play = QPushButton('Uruchom grę'); retro_play.clicked.connect(self.launch_retro); retro_row.addWidget(retro_play)
+        retro_refresh = QPushButton('Odśwież listę'); retro_refresh.clicked.connect(self.refresh_retro); retro_row.addWidget(retro_refresh)
+        rl.addLayout(retro_row)
+        retro_more = QHBoxLayout()
+        retro_folder = QPushButton('Otwórz folder gier'); retro_folder.clicked.connect(self.open_retro_folder); retro_more.addWidget(retro_folder)
+        retro_app = QPushButton('Otwórz RetroArch'); retro_app.clicked.connect(lambda: self.launch(['retroarch'], 'RetroArch')); retro_more.addWidget(retro_app)
+        rl.addLayout(retro_more)
+        retro_note = QLabel('Inne konsole i formaty możesz skonfigurować bezpośrednio w RetroArch. Gry i firmware nie są dołączone.'); retro_note.setWordWrap(True); rl.addWidget(retro_note)
+        retro_scroll = QScrollArea(); retro_scroll.setWidgetResizable(True); retro_scroll.setWidget(retro_tab)
+        self.tabs.addTab(retro_scroll, 'Retro'); self.refresh_retro()
         plan_tab = QWidget(); pl = QVBoxLayout(plan_tab)
         ph = QLabel('Kripusek: czy zdążę?'); ph.setObjectName('heading'); pl.addWidget(ph)
         pn = QLabel('Porównaj swój plan z szacowanym czasem na baterii. Kripusek zostawia 15% zapasu i zakłada taki sam pobór energii jak w tej chwili.')
@@ -550,6 +572,41 @@ class Center(QMainWindow):
         game = self.game_by_key.get(item.data(Qt.UserRole))
         if game:
             self.launch_game(game)
+
+    def refresh_retro(self):
+        self.retro_list.clear()
+        count = 0
+        try:
+            if RETRO_DIR.is_dir():
+                for path in RETRO_DIR.rglob('*'):
+                    if path.suffix.lower() in RETRO_CORES and path.is_file():
+                        item = QListWidgetItem(str(path.relative_to(RETRO_DIR)))
+                        item.setData(Qt.UserRole, str(path)); self.retro_list.addItem(item)
+                        count += 1
+                        if count >= 5000:
+                            break
+        except OSError:
+            self.retro_status.setText('Nie udało się odczytać folderu gier retro.'); return
+        state = 'RetroArch jest dostępny.' if shutil.which('retroarch') else 'RetroArch nie jest zainstalowany.'
+        self.retro_status.setText(f'{state} Wykryto {count} gier w ~/Games/Retro.')
+
+    def open_retro_folder(self):
+        try:
+            RETRO_DIR.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            QMessageBox.warning(self, 'Kącik retro', 'Nie udało się otworzyć folderu: ' + str(exc)); return
+        self.launch(['xdg-open', str(RETRO_DIR)], 'Folder gier retro')
+
+    def launch_retro(self):
+        item = self.retro_list.currentItem()
+        if item is None:
+            QMessageBox.information(self, 'Kącik retro', 'Wybierz grę z listy.'); return
+        path = Path(item.data(Qt.UserRole))
+        name = RETRO_CORES.get(path.suffix.lower())
+        core = Path('/usr/lib/x86_64-linux-gnu/libretro') / (str(name) + '_libretro.so')
+        if not path.is_file() or not name or not core.is_file():
+            QMessageBox.warning(self, 'Kącik retro', 'Brakuje pliku gry albo silnika RetroArch dla tego formatu.'); return
+        self.launch(['retroarch', '-L', str(core), str(path)], 'Gra retro: ' + path.name)
 
     def launch_game(self, game):
         command_line = launch_command(game)

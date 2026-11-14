@@ -67,6 +67,8 @@ Po aktualizacji uruchom z menu **Centrum Kribuntu** — to okno z kafelkami gier
 
 Centrum odczytuje lokalne listy zainstalowanych gier Steama i Heroica (Epic, GOG i Amazon), pokazuje bibliotekę i pozwala uruchamiać znalezione gry. Kripusek odświeża bibliotekę w tle; monitor sprawdza ją także przy zamkniętym Centrum i zgłasza nowe gry powiadomieniem. Wykrywanie zależy od danych zapisywanych przez obsługiwane launchery.
 
+Zakładka **Retro** wyświetla własne pliki gier z `~/Games/Retro`. Do uruchamiania obsługiwanych formatów potrzebne są pakiety `retroarch`, `libretro-mgba`, `libretro-snes9x` i `libretro-genesisplusgx`. Same gry oraz firmware nie są dołączone do Kribuntu. Pakiety instalowane są osobno; aktualizator Centrum ich nie instaluje.
+
 W Centrum zakładka **Laptop i kamera** pokazuje baterię, dostępne temperatury, procesy i stan przełącznika kamery IR dla Discorda. Gaze i Discord mogą rywalizować o tę samą kamerę; przełącznik nie zmienia konfiguracji logowania. Zakładka **Ślady** zapisuje lokalnie tylko działania uruchomione w Centrum i powiadomienia Steama, a nie historię całego systemu. Wskazania procesów pokazują wykorzystanie CPU od poprzedniego odczytu (100% oznacza jeden rdzeń).
 
 W zakładce **Ślady** można cofnąć ostatnią potwierdzoną zmianę stanu przełącznika kamery IR wykonaną przez Centrum. Cofanie nie nastąpi, jeśli aktualny stan różni się od zapisanego stanu po tej zmianie. Nie jest to przywracanie dowolnych zmian systemu.
