@@ -245,7 +245,7 @@ class Center(QMainWindow):
         header = QHBoxLayout(); title_area = QVBoxLayout()
         title = QLabel('KRIBUNTU'); title.setObjectName('title'); title_area.addWidget(title)
         subtitle = QLabel('Twój laptop, gry i ostatnie działania'); subtitle.setObjectName('subtitle'); title_area.addWidget(subtitle)
-        title_area.addStretch(); header.addLayout(title_area, 1)
+        header.addLayout(title_area, 1)
         self.settings = QSettings('Kribuntu', 'Center')
         mascot_path = Path('/usr/local/share/kribuntu/kripusek.gif')
         if not mascot_path.is_file():
@@ -258,7 +258,7 @@ class Center(QMainWindow):
             animation.toggled.connect(self.set_animation); mascot_area.addWidget(animation); header.addLayout(mascot_area)
             self.set_animation(animation.isChecked(), save=False)
         outer.addLayout(header)
-        self.tabs = QTabWidget(); outer.addWidget(self.tabs)
+        self.tabs = QTabWidget(); outer.addWidget(self.tabs, 1)
         home = QWidget(); layout = QVBoxLayout(home); grid = QGridLayout(); layout.addLayout(grid)
         items = [
             ('STEAM', 'Tryb gier', ['flatpak', 'run', 'com.valvesoftware.Steam', '-gamepadui']),
