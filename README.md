@@ -73,6 +73,8 @@ W zakładce **Gry** Kripusek sprawdza znaną poprawkę Proton/DXVK dla The Talos
 
 Centrum wyświetla animację Kripuska, którą można zatrzymać przełącznikiem w nagłówku.
 
+Zakładka **Czy zdążę?** porównuje czas wpisany przez użytkownika z szacunkowym czasem do osiągnięcia 15% baterii, przy założeniu stałego aktualnego poboru. Wynik jest orientacyjny i nie zmienia ustawień energii; podczas ładowania oraz bez danych o poborze prognoza nie jest pokazywana.
+
 Zakładka **Pobieranie** odczytuje liczby zapisane przez Steam w domyślnych bibliotekach użytkownika (Flatpak i standardowa lokalizacja). Lekka usługa użytkownika sprawdza je w tle i wysyła powiadomienie, gdy zauważy przejście pobierania oraz przygotowania do stanu zakończonego. Biblioteki w innych katalogach nie są jeszcze wykrywane. Stan usługi jest widoczny w Centrum.
 
 Przy uśpieniu usługa Kribuntu zapisuje lokalnie poziom baterii i aktywne pobierania Steama w domyślnych bibliotekach. Po wznowieniu przypomina o tych informacjach i o grach online. Nie zatrzymuje gry, nie tworzy zapisu gry i nie zmienia ustawień uśpienia. Wymaga działającej sesji użytkownika i usług D-Bus systemd.

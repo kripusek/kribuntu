@@ -15,7 +15,7 @@ from kribuntu_steam import steam_downloads
 from PyQt5.QtCore import Qt, QTimer, QSize, QSettings, QProcess
 from PyQt5.QtGui import QMovie
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QGridLayout, QHBoxLayout, QLabel,
-    QMainWindow, QMessageBox, QPushButton, QScrollArea, QTabWidget, QVBoxLayout, QWidget)
+    QMainWindow, QMessageBox, QPushButton, QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget)
 
 HOME = Path.home()
 STATE = Path(os.environ.get('XDG_STATE_HOME', HOME / '.local/state')) / 'kribuntu' / 'activity.jsonl'
@@ -157,6 +157,26 @@ def talos_report(home):
     return result
 
 
+def battery_projection(battery_dir, reserve=0.15):
+    """Return minutes above reserve at current draw, or an explanation."""
+    if read(battery_dir / 'status') != 'Discharging':
+        return None, 'Prognoza jest dostępna podczas pracy na baterii.'
+    for now_name, full_name, rate_name in (
+            ('energy_now', 'energy_full', 'power_now'),
+            ('charge_now', 'charge_full', 'current_now')):
+        try:
+            now = int(read(battery_dir / now_name))
+            full = int(read(battery_dir / full_name))
+            rate = int(read(battery_dir / rate_name))
+            if now < 0 or full <= 0 or rate <= 0 or now > full * 1.3:
+                continue
+            available = max(0.0, now - full * reserve)
+            return available / rate * 60, None
+        except ValueError:
+            continue
+    return None, 'Bateria nie udostępnia wiarygodnego bieżącego poboru.'
+
+
 def snapshot():
     power = Path('/sys/class/power_supply')
     batteries = sorted(power.glob('BAT*')) if power.exists() else []
@@ -285,6 +305,16 @@ class Center(QMainWindow):
         self.game_report = QLabel('Wybierz sprawdzenie, aby zobaczyć wynik.'); self.game_report.setTextFormat(Qt.PlainText)
         self.game_report.setWordWrap(True); self.game_report.setObjectName('card'); self.game_report.setTextInteractionFlags(Qt.TextSelectableByMouse); gl.addWidget(self.game_report)
         gl.addStretch(); self.tabs.addTab(games_tab, 'Gry')
+        plan_tab = QWidget(); pl = QVBoxLayout(plan_tab)
+        ph = QLabel('Kripusek: czy zdążę?'); ph.setObjectName('heading'); pl.addWidget(ph)
+        pn = QLabel('Porównaj swój plan z szacowanym czasem na baterii. Kripusek zostawia 15% zapasu i zakłada taki sam pobór energii jak w tej chwili.')
+        pn.setWordWrap(True); pl.addWidget(pn)
+        plan_row = QHBoxLayout(); plan_row.addWidget(QLabel('Potrzebuję jeszcze:'))
+        self.plan_minutes = QSpinBox(); self.plan_minutes.setRange(5, 480); self.plan_minutes.setSingleStep(15); self.plan_minutes.setSuffix(' min')
+        self.plan_minutes.setValue(self.settings.value('plan_minutes', 60, type=int)); plan_row.addWidget(self.plan_minutes); plan_row.addStretch(); pl.addLayout(plan_row)
+        self.plan_result = QLabel(); self.plan_result.setTextFormat(Qt.PlainText); self.plan_result.setWordWrap(True); self.plan_result.setObjectName('card'); pl.addWidget(self.plan_result)
+        pl.addStretch(); self.tabs.addTab(plan_tab, 'Czy zdążę?')
+        self.plan_minutes.valueChanged.connect(self.update_plan)
         downloads_tab = QWidget(); dl = QVBoxLayout(downloads_tab)
         dh = QLabel('Kripusek pilnuje Steama'); dh.setObjectName('heading'); dl.addWidget(dh)
         dn = QLabel('Dane pochodzą z plików lokalnych bibliotek Steam w domyślnych lokalizacjach. Powiadomienia wysyła usługa użytkownika; inne biblioteki mogą nie być widoczne.')
@@ -340,6 +370,7 @@ class Center(QMainWindow):
             changes = 'ZMIANY  ·  ' + (' '.join(details) if details else 'Bateria i stan kamery bez zmian od poprzedniego odczytu.')
         self.changes.setText(changes)
         self.previous = current
+        self.update_plan()
         downloads = steam_downloads()
         watch_rc, watch_state = command('systemctl', '--user', 'is-active', 'kribuntu-steam-watch.service')
         self.watch_status.setText('Monitor w tle: działa.' if watch_rc == 0 and watch_state == 'active'
@@ -347,6 +378,22 @@ class Center(QMainWindow):
         rows = [f'{name}\n{status}' for name, busy, status in downloads.values()]
         self.downloads.setText('\n\n'.join(rows) if rows else 'Brak danych o pobieraniu w domyślnych bibliotekach Steam.')
         self.log.setText(history())
+
+    def update_plan(self):
+        minutes = self.plan_minutes.value()
+        self.settings.setValue('plan_minutes', minutes)
+        batteries = sorted(Path('/sys/class/power_supply').glob('BAT*'))
+        if not batteries:
+            self.plan_result.setText('Nie wykryto baterii, więc nie mogę wyliczyć czasu.')
+            return
+        estimate, reason = battery_projection(batteries[0])
+        if estimate is None:
+            self.plan_result.setText(reason)
+            return
+        outcome = ('Przy obecnym poborze szacunek wystarcza na Twój plan.' if estimate >= minutes else
+                   'Przy obecnym poborze szacunek jest krótszy od Twojego planu.')
+        self.plan_result.setText(f'{outcome}\n\nSzacunkowo {estimate:.0f} min do osiągnięcia 15% zapasu. '
+                                 'Pobór może się zmienić, zwłaszcza po uruchomieniu gry; to nie jest gwarancja.')
 
     def explain(self):
         self.refresh()
