@@ -66,3 +66,5 @@ System poprosi o hasło administratora. Potem w menu aplikacji uruchom **Aktuali
 Po aktualizacji uruchom z menu **Centrum Kribuntu** — to okno z kafelkami gier, Discorda, diagnostyki i ustawień. Program nie zastępuje pulpitu KDE.
 
 W Centrum zakładka **Laptop i kamera** pokazuje baterię, dostępne temperatury, procesy i stan przełącznika kamery IR dla Discorda. Gaze i Discord mogą rywalizować o tę samą kamerę; przełącznik nie zmienia konfiguracji logowania. Zakładka **Ślady** zapisuje lokalnie tylko działania uruchomione w Centrum, a nie historię całego systemu. Wskazania procesów to średni udział CPU od ich uruchomienia, nie bieżący pomiar.
+
+Zakładka **Pobieranie** odczytuje liczby zapisane przez Steam w domyślnych bibliotekach użytkownika (Flatpak i standardowa lokalizacja). Gdy Centrum pozostaje otwarte i zauważy przejście pobierania oraz przygotowania do stanu zakończonego, wysyła powiadomienie. Biblioteki w innych katalogach nie są jeszcze wykrywane, a zamknięte Centrum nie działa w tle.

@@ -4,6 +4,7 @@ import datetime
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -55,6 +56,46 @@ def history():
         return '\n'.join(entries) or 'Tu pojawią się działania wykonane w Centrum.'
     except OSError:
         return 'Tu pojawią się działania wykonane w Centrum.'
+
+
+def steam_downloads():
+    roots = [HOME / '.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps',
+             HOME / '.steam/steam/steamapps']
+    seen = set()
+    downloads = {}
+    for root in roots:
+        try:
+            manifests = list(root.glob('appmanifest_*.acf'))
+        except OSError:
+            continue
+        for path in manifests:
+            try:
+                resolved = path.resolve()
+                if resolved in seen:
+                    continue
+                seen.add(resolved)
+                text = path.read_text(encoding='utf-8', errors='replace')
+                def field(key):
+                    match = re.search(r'^\s*"' + re.escape(key) + r'"\s*"([^"\n]*)"', text, re.MULTILINE)
+                    return match.group(1) if match else ''
+                total = int(field('BytesToDownload') or '0')
+                downloaded = int(field('BytesDownloaded') or '0')
+                staged_total = int(field('BytesToStage') or '0')
+                staged = int(field('BytesStaged') or '0')
+                if total <= 0:
+                    continue
+                name = field('name') or path.stem
+                busy = downloaded < total or (staged_total > 0 and staged < staged_total)
+                if downloaded < total:
+                    status = f'{100 * max(0, min(downloaded, total)) / total:.0f}% pobrano'
+                elif staged_total > 0 and staged < staged_total:
+                    status = f'{100 * max(0, min(staged, staged_total)) / staged_total:.0f}% przygotowano'
+                else:
+                    status = 'pobieranie i przygotowanie zakończone'
+                downloads[str(resolved)] = (name, busy, status)
+            except (OSError, ValueError):
+                continue
+    return downloads
 
 
 def snapshot():
@@ -133,12 +174,14 @@ class Center(QMainWindow):
         info = QWidget(); il = QVBoxLayout(info)
         heading = QLabel('Co się dzieje na laptopie?'); heading.setObjectName('heading'); il.addWidget(heading)
         note = QLabel('Bieżące odczyty pomagają znaleźć przyczynę. Same nie są diagnozą.'); note.setWordWrap(True); il.addWidget(note)
-        self.battery = QLabel(); self.temperature = QLabel(); self.processes = QLabel(); self.camera = QLabel(); self.storage = QLabel()
-        for widget in (self.battery, self.temperature, self.processes, self.camera, self.storage):
+        self.battery = QLabel(); self.temperature = QLabel(); self.processes = QLabel(); self.camera = QLabel(); self.storage = QLabel(); self.changes = QLabel()
+        for widget in (self.battery, self.temperature, self.processes, self.camera, self.storage, self.changes):
             widget.setWordWrap(True); widget.setObjectName('card'); widget.setTextInteractionFlags(Qt.TextSelectableByMouse); il.addWidget(widget)
         row = QHBoxLayout()
         refresh = QPushButton('Odśwież'); refresh.clicked.connect(self.refresh); row.addWidget(refresh)
         toggle = QPushButton('Kamera IR dla Discorda'); toggle.clicked.connect(self.toggle_camera); row.addWidget(toggle)
+        gaze = QPushButton('Ustawienia twarzy'); gaze.clicked.connect(lambda: self.launch(['gaze-gui'], 'Ustawienia twarzy'))
+        row.addWidget(gaze)
         il.addLayout(row); il.addStretch()
         info_scroll = QScrollArea(); info_scroll.setWidgetResizable(True); info_scroll.setWidget(info)
         self.tabs.addTab(info_scroll, 'Laptop i kamera')
@@ -148,6 +191,12 @@ class Center(QMainWindow):
         self.log = QLabel(); self.log.setWordWrap(True); self.log.setAlignment(Qt.AlignTop | Qt.AlignLeft); self.log.setObjectName('card'); self.log.setTextInteractionFlags(Qt.TextSelectableByMouse)
         scroll = QScrollArea(); scroll.setWidgetResizable(True); scroll.setWidget(self.log); ll.addWidget(scroll)
         self.tabs.addTab(logtab, 'Ślady')
+        downloads_tab = QWidget(); dl = QVBoxLayout(downloads_tab)
+        dh = QLabel('Kripusek pilnuje Steama'); dh.setObjectName('heading'); dl.addWidget(dh)
+        dn = QLabel('Dane pochodzą z plików lokalnych bibliotek Steam w domyślnych lokalizacjach. Powiadomienie o zakończeniu działa, gdy Centrum jest otwarte; inne biblioteki mogą nie być widoczne.')
+        dn.setWordWrap(True); dl.addWidget(dn)
+        self.downloads = QLabel(); self.downloads.setObjectName('card'); self.downloads.setTextFormat(Qt.PlainText); self.downloads.setWordWrap(True); self.downloads.setAlignment(Qt.AlignTop | Qt.AlignLeft); dl.addWidget(self.downloads)
+        dl.addStretch(); self.tabs.addTab(downloads_tab, 'Pobieranie')
         self.setStyleSheet('''
           QMainWindow, QWidget { background:#14141c; color:#f7f7fa; font-family:sans-serif; }
           QLabel#title { font-size:34px; font-weight:800; letter-spacing:3px; }
@@ -159,6 +208,8 @@ class Center(QMainWindow):
           QTabBar::tab { background:#252631; padding:10px 22px; border-radius:6px; }
           QTabBar::tab:selected { background:#a41d38; }
         ''')
+        self.previous = None
+        self.previous_downloads = None
         self.refresh(); self.timer = QTimer(self); self.timer.timeout.connect(self.refresh); self.timer.start(15000)
 
     def refresh(self):
@@ -168,6 +219,32 @@ class Center(QMainWindow):
         self.processes.setText('PROCESY  ·  średni udział CPU od uruchomienia (%)\n' + proc)
         self.camera.setText(camera)
         self.storage.setText('DYSK  ·  ' + storage)
+        current = (charge, camera)
+        if self.previous is None:
+            changes = 'ZMIANY  ·  Czekam na kolejny odczyt baterii i kamery.'
+        else:
+            details = []
+            if current[0] != self.previous[0]:
+                details.append('Zmienił się odczyt baterii: ' + charge.split('\n')[0])
+            if current[1] != self.previous[1]:
+                details.append('Zmienił się stan kamery lub usługi Gaze.')
+            changes = 'ZMIANY  ·  ' + (' '.join(details) if details else 'Bateria i stan kamery bez zmian od poprzedniego odczytu.')
+        self.changes.setText(changes)
+        self.previous = current
+        downloads = steam_downloads()
+        if self.previous_downloads is not None:
+            for key, (name, busy, status) in downloads.items():
+                old = self.previous_downloads.get(key)
+                if old and old[1] and not busy:
+                    record('Steam: zakończono pobieranie i przygotowanie: ' + name)
+                    if shutil.which('notify-send'):
+                        try:
+                            subprocess.Popen(['notify-send', 'Kribuntu: Steam', name + ' — pobieranie zakończone'], start_new_session=True)
+                        except OSError:
+                            pass
+        self.previous_downloads = downloads
+        rows = [f'{name}\n{status}' for name, busy, status in downloads.values()]
+        self.downloads.setText('\n\n'.join(rows) if rows else 'Brak danych o pobieraniu w domyślnych bibliotekach Steam.')
         self.log.setText(history())
 
     def toggle_camera(self):
