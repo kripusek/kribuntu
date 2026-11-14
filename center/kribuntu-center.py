@@ -4,10 +4,12 @@ import datetime
 import json
 import os
 from pathlib import Path
-import re
 import shutil
 import subprocess
 import sys
+
+sys.path.insert(0, '/usr/local/lib/kribuntu')
+from kribuntu_steam import steam_downloads
 
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import (QApplication, QGridLayout, QHBoxLayout, QLabel,
@@ -56,46 +58,6 @@ def history():
         return '\n'.join(entries) or 'Tu pojawią się działania wykonane w Centrum.'
     except OSError:
         return 'Tu pojawią się działania wykonane w Centrum.'
-
-
-def steam_downloads():
-    roots = [HOME / '.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps',
-             HOME / '.steam/steam/steamapps']
-    seen = set()
-    downloads = {}
-    for root in roots:
-        try:
-            manifests = list(root.glob('appmanifest_*.acf'))
-        except OSError:
-            continue
-        for path in manifests:
-            try:
-                resolved = path.resolve()
-                if resolved in seen:
-                    continue
-                seen.add(resolved)
-                text = path.read_text(encoding='utf-8', errors='replace')
-                def field(key):
-                    match = re.search(r'^\s*"' + re.escape(key) + r'"\s*"([^"\n]*)"', text, re.MULTILINE)
-                    return match.group(1) if match else ''
-                total = int(field('BytesToDownload') or '0')
-                downloaded = int(field('BytesDownloaded') or '0')
-                staged_total = int(field('BytesToStage') or '0')
-                staged = int(field('BytesStaged') or '0')
-                if total <= 0:
-                    continue
-                name = field('name') or path.stem
-                busy = downloaded < total or (staged_total > 0 and staged < staged_total)
-                if downloaded < total:
-                    status = f'{100 * max(0, min(downloaded, total)) / total:.0f}% pobrano'
-                elif staged_total > 0 and staged < staged_total:
-                    status = f'{100 * max(0, min(staged, staged_total)) / staged_total:.0f}% przygotowano'
-                else:
-                    status = 'pobieranie i przygotowanie zakończone'
-                downloads[str(resolved)] = (name, busy, status)
-            except (OSError, ValueError):
-                continue
-    return downloads
 
 
 def snapshot():
@@ -193,8 +155,9 @@ class Center(QMainWindow):
         self.tabs.addTab(logtab, 'Ślady')
         downloads_tab = QWidget(); dl = QVBoxLayout(downloads_tab)
         dh = QLabel('Kripusek pilnuje Steama'); dh.setObjectName('heading'); dl.addWidget(dh)
-        dn = QLabel('Dane pochodzą z plików lokalnych bibliotek Steam w domyślnych lokalizacjach. Powiadomienie o zakończeniu działa, gdy Centrum jest otwarte; inne biblioteki mogą nie być widoczne.')
+        dn = QLabel('Dane pochodzą z plików lokalnych bibliotek Steam w domyślnych lokalizacjach. Powiadomienia wysyła usługa użytkownika; inne biblioteki mogą nie być widoczne.')
         dn.setWordWrap(True); dl.addWidget(dn)
+        self.watch_status = QLabel(); self.watch_status.setWordWrap(True); dl.addWidget(self.watch_status)
         self.downloads = QLabel(); self.downloads.setObjectName('card'); self.downloads.setTextFormat(Qt.PlainText); self.downloads.setWordWrap(True); self.downloads.setAlignment(Qt.AlignTop | Qt.AlignLeft); dl.addWidget(self.downloads)
         dl.addStretch(); self.tabs.addTab(downloads_tab, 'Pobieranie')
         self.setStyleSheet('''
@@ -209,7 +172,6 @@ class Center(QMainWindow):
           QTabBar::tab:selected { background:#a41d38; }
         ''')
         self.previous = None
-        self.previous_downloads = None
         self.refresh(); self.timer = QTimer(self); self.timer.timeout.connect(self.refresh); self.timer.start(15000)
 
     def refresh(self):
@@ -232,17 +194,9 @@ class Center(QMainWindow):
         self.changes.setText(changes)
         self.previous = current
         downloads = steam_downloads()
-        if self.previous_downloads is not None:
-            for key, (name, busy, status) in downloads.items():
-                old = self.previous_downloads.get(key)
-                if old and old[1] and not busy:
-                    record('Steam: zakończono pobieranie i przygotowanie: ' + name)
-                    if shutil.which('notify-send'):
-                        try:
-                            subprocess.Popen(['notify-send', 'Kribuntu: Steam', name + ' — pobieranie zakończone'], start_new_session=True)
-                        except OSError:
-                            pass
-        self.previous_downloads = downloads
+        watch_rc, watch_state = command('systemctl', '--user', 'is-active', 'kribuntu-steam-watch.service')
+        self.watch_status.setText('Monitor w tle: działa.' if watch_rc == 0 and watch_state == 'active'
+                                  else 'Monitor w tle: nie jest uruchomiony. Uruchom go lub wyloguj się i zaloguj ponownie po aktualizacji.')
         rows = [f'{name}\n{status}' for name, busy, status in downloads.values()]
         self.downloads.setText('\n\n'.join(rows) if rows else 'Brak danych o pobieraniu w domyślnych bibliotekach Steam.')
         self.log.setText(history())

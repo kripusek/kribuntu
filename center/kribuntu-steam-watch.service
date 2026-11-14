@@ -1,0 +1,11 @@
+[Unit]
+Description=Kribuntu Steam download watcher
+
+[Service]
+Type=simple
+ExecStart=/usr/local/lib/kribuntu/kribuntu-steam-watch.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

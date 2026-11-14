@@ -20,8 +20,14 @@ install -Dm755 "$repo/updater/update-gui.sh" /usr/local/bin/kribuntu-update.new
 mv -f /usr/local/bin/kribuntu-update.new /usr/local/bin/kribuntu-update
 install -Dm644 "$repo/updater/kribuntu-update.desktop" /usr/local/share/applications/kribuntu-update.desktop
 install -Dm644 "$repo/updater/kribuntu-gaming.desktop" /usr/local/share/applications/kribuntu-gaming.desktop
+install -Dm644 "$repo/center/kribuntu_steam.py" /usr/local/lib/kribuntu/kribuntu_steam.py
+install -Dm755 "$repo/center/kribuntu-steam-watch.py" /usr/local/lib/kribuntu/kribuntu-steam-watch.py
+install -Dm644 "$repo/center/kribuntu-steam-watch.service" /usr/lib/systemd/user/kribuntu-steam-watch.service
 install -Dm755 "$repo/center/kribuntu-center.py" /usr/local/bin/kribuntu-center
 install -Dm644 "$repo/center/kribuntu-center.desktop" /usr/local/share/applications/kribuntu-center.desktop
+if command -v systemctl >/dev/null; then
+  systemctl --global enable kribuntu-steam-watch.service || echo 'Nie udało się włączyć monitora Steama na przyszłe sesje.' >&2
+fi
 git -C "$repo" rev-parse --short HEAD > /usr/local/share/kribuntu-version
 command -v update-desktop-database >/dev/null && update-desktop-database /usr/local/share/applications || true
 printf 'Aktualizacja plikow Kribuntu zakonczona.\n'
