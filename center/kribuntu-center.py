@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import time
 
 sys.path.insert(0, '/usr/local/lib/kribuntu')
 from kribuntu_steam import steam_downloads
@@ -32,6 +33,46 @@ def read(path):
         return Path(path).read_text().strip()
     except (OSError, ValueError):
         return ''
+
+
+def cpu_counters():
+    lines = read('/proc/stat').splitlines()
+    try:
+        total = sum(int(value) for value in lines[0].split()[1:9])
+    except (IndexError, ValueError):
+        return None
+    processes = {}
+    for path in Path('/proc').glob('[0-9]*/stat'):
+        data = read(path)
+        pos = data.rfind(')')
+        if pos < 0:
+            continue
+        fields = data[pos + 1:].split()
+        try:
+            processes[path.parent.name] = (fields[19], int(fields[11]) + int(fields[12]),
+                                           data[data.find('(') + 1:pos])
+        except (IndexError, ValueError):
+            continue
+    return time.monotonic(), total, processes
+
+
+def cpu_changes(previous, current):
+    if previous is None or current is None:
+        return 'Zbieram pierwszy pomiar procesora.'
+    elapsed = current[0] - previous[0]
+    total = current[1] - previous[1]
+    if total <= 0 or elapsed <= 0:
+        return 'Brak danych z kolejnego pomiaru.'
+    cores = os.cpu_count() or 1
+    usage = []
+    for pid, (started, ticks, name) in current[2].items():
+        old = previous[2].get(pid)
+        if old and old[0] == started and ticks >= old[1]:
+            pct = 100 * cores * (ticks - old[1]) / total
+            if pct >= 0.1:
+                usage.append((pct, name))
+    rows = [f'{pct:.1f}%  {name}' for pct, name in sorted(usage, reverse=True)[:4]]
+    return f'Ostatnie {elapsed:.0f} s (100% = jeden rdzeń)\n' + ('\n'.join(rows) if rows else 'Brak mierzalnego obciążenia procesów.')
 
 
 def record(event):
@@ -81,18 +122,16 @@ def snapshot():
     else:
         charge = 'Nie wykryto baterii'
     sensors = []
-    for zone in Path('/sys/class/thermal').glob('thermal_zone*'):
-        typ, val = read(zone / 'type'), read(zone / 'temp')
+    sensor_names = {'k10temp': 'CPU (Tctl)', 'amdgpu': 'GPU (edge)', 'nvme': 'SSD'}
+    for zone in Path('/sys/class/hwmon').glob('hwmon*'):
+        typ, val = read(zone / 'name'), read(zone / 'temp1_input')
         try:
             temp = int(val) / 1000
-            if typ.lower() in ('x86_pkg_temp', 'soc_thermal', 'acpitz') and 0 < temp < 120:
-                sensors.append((typ, temp))
+            if typ in sensor_names and 0 < temp < 120:
+                sensors.append((sensor_names[typ], temp))
         except ValueError:
             pass
-    temptext = ', '.join(f'{n}: {v:.0f}°C' for n, v in sensors[:2]) or 'Brak odczytu temperatury'
-    _, processes = command('ps', '-eo', 'pcpu=,comm=', '--sort=-pcpu')
-    top = [line.strip() for line in processes.splitlines()[:4] if line.strip()]
-    proc = '\n'.join(top) if top else 'Brak danych o procesach'
+    temptext = ', '.join(f'{n}: {v:.0f}°C' for n, v in sensors[:3]) or 'Brak odczytu temperatury'
     try:
         disk = shutil.disk_usage(HOME)
         storage = f'{disk.free / (1024 ** 3):.0f} GiB wolnego w systemie plików katalogu domowego'
@@ -105,7 +144,7 @@ def snapshot():
               'Kamera IR dla Discorda: wyłączona lub niedostępna.')
     if gaze == 'active':
         camera += '\nGaze: usługa działa. Rozpoznanie zależy od dostępności kamery.'
-    return charge, temptext, proc, camera, storage
+    return charge, temptext, camera, storage
 
 
 class Center(QMainWindow):
@@ -138,7 +177,7 @@ class Center(QMainWindow):
         note = QLabel('Bieżące odczyty pomagają znaleźć przyczynę. Same nie są diagnozą.'); note.setWordWrap(True); il.addWidget(note)
         self.battery = QLabel(); self.temperature = QLabel(); self.processes = QLabel(); self.camera = QLabel(); self.storage = QLabel(); self.changes = QLabel()
         for widget in (self.battery, self.temperature, self.processes, self.camera, self.storage, self.changes):
-            widget.setWordWrap(True); widget.setObjectName('card'); widget.setTextInteractionFlags(Qt.TextSelectableByMouse); il.addWidget(widget)
+            widget.setTextFormat(Qt.PlainText); widget.setWordWrap(True); widget.setObjectName('card'); widget.setTextInteractionFlags(Qt.TextSelectableByMouse); il.addWidget(widget)
         row = QHBoxLayout()
         refresh = QPushButton('Odśwież'); refresh.clicked.connect(self.refresh); row.addWidget(refresh)
         toggle = QPushButton('Kamera IR dla Discorda'); toggle.clicked.connect(self.toggle_camera); row.addWidget(toggle)
@@ -172,13 +211,17 @@ class Center(QMainWindow):
           QTabBar::tab:selected { background:#a41d38; }
         ''')
         self.previous = None
+        self.previous_cpu = None
         self.refresh(); self.timer = QTimer(self); self.timer.timeout.connect(self.refresh); self.timer.start(15000)
 
     def refresh(self):
-        charge, temp, proc, camera, storage = snapshot()
+        charge, temp, camera, storage = snapshot()
+        current_cpu = cpu_counters()
+        proc = cpu_changes(self.previous_cpu, current_cpu)
+        self.previous_cpu = current_cpu
         self.battery.setText('BATERIA  ·  ' + charge)
         self.temperature.setText('TEMPERATURA  ·  ' + temp)
-        self.processes.setText('PROCESY  ·  średni udział CPU od uruchomienia (%)\n' + proc)
+        self.processes.setText('PROCESY  ·  bieżący pomiar CPU\n' + proc)
         self.camera.setText(camera)
         self.storage.setText('DYSK  ·  ' + storage)
         current = (charge, camera)
