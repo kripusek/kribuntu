@@ -22,7 +22,8 @@ STATE = Path(os.environ.get('XDG_STATE_HOME', HOME / '.local/state')) / 'kribunt
 
 def command(*args, timeout=2):
     try:
-        result = subprocess.run(args, capture_output=True, text=True, timeout=timeout, check=False)
+        result = subprocess.run(args, capture_output=True, text=True, timeout=timeout, check=False,
+                                env={**os.environ, 'LC_ALL': 'C'})
         return result.returncode, result.stdout.strip()
     except (OSError, subprocess.TimeoutExpired):
         return 127, ''
@@ -140,11 +141,22 @@ def snapshot():
     rc, active = command('systemctl', '--user', 'is-active', 'ir-camera.service')
     ir = rc == 0 and active == 'active'
     _, gaze = command('systemctl', 'is-active', 'gazed.service')
-    camera = ('Kamera IR dla Discorda: WŁĄCZONA. Może zajmować kamerę potrzebną Gaze.' if ir else
-              'Kamera IR dla Discorda: wyłączona lub niedostępna.')
+    if ir:
+        camera = 'Kamera IR dla Discorda: WŁĄCZONA. Może zajmować kamerę potrzebną Gaze.'
+    elif active == 'failed':
+        camera = 'Kamera IR dla Discorda: usługa zatrzymana ze stanem błędu.'
+    else:
+        camera = 'Kamera IR dla Discorda: wyłączona lub niedostępna.'
     if gaze == 'active':
         camera += '\nGaze: usługa działa. Rozpoznanie zależy od dostępności kamery.'
-    return charge, temptext, camera, storage
+    sink_rc, sink = command('pactl', 'get-default-sink')
+    mute_rc, mute = command('pactl', 'get-sink-mute', '@DEFAULT_SINK@')
+    if sink_rc != 0 or not sink:
+        audio = 'Nie udało się odczytać domyślnego wyjścia dźwięku.'
+    else:
+        mute_text = {'Mute: yes': 'wyciszone', 'Mute: no': 'niewyciszone'}.get(mute, 'stan wyciszenia nieznany') if mute_rc == 0 else 'stan wyciszenia nieznany'
+        audio = f'Wyjście: {sink}\nStan: {mute_text}. Nie sprawdzono, czy dźwięk jest słyszalny.'
+    return charge, temptext, camera, storage, audio
 
 
 class Center(QMainWindow):
@@ -175,8 +187,8 @@ class Center(QMainWindow):
         info = QWidget(); il = QVBoxLayout(info)
         heading = QLabel('Co się dzieje na laptopie?'); heading.setObjectName('heading'); il.addWidget(heading)
         note = QLabel('Bieżące odczyty pomagają znaleźć przyczynę. Same nie są diagnozą.'); note.setWordWrap(True); il.addWidget(note)
-        self.battery = QLabel(); self.temperature = QLabel(); self.processes = QLabel(); self.camera = QLabel(); self.storage = QLabel(); self.changes = QLabel()
-        for widget in (self.battery, self.temperature, self.processes, self.camera, self.storage, self.changes):
+        self.battery = QLabel(); self.temperature = QLabel(); self.processes = QLabel(); self.camera = QLabel(); self.storage = QLabel(); self.audio = QLabel(); self.changes = QLabel()
+        for widget in (self.battery, self.temperature, self.processes, self.camera, self.storage, self.audio, self.changes):
             widget.setTextFormat(Qt.PlainText); widget.setWordWrap(True); widget.setObjectName('card'); widget.setTextInteractionFlags(Qt.TextSelectableByMouse); il.addWidget(widget)
         row = QHBoxLayout()
         refresh = QPushButton('Odśwież'); refresh.clicked.connect(self.refresh); row.addWidget(refresh)
@@ -184,6 +196,8 @@ class Center(QMainWindow):
         gaze = QPushButton('Ustawienia twarzy'); gaze.clicked.connect(lambda: self.launch(['gaze-gui'], 'Ustawienia twarzy'))
         row.addWidget(gaze)
         il.addLayout(row); il.addStretch()
+        explain_button = QPushButton('Kripusek wyjaśnia kamerę i dźwięk'); explain_button.clicked.connect(self.explain)
+        il.addWidget(explain_button)
         info_scroll = QScrollArea(); info_scroll.setWidgetResizable(True); info_scroll.setWidget(info)
         self.tabs.addTab(info_scroll, 'Laptop i kamera')
         logtab = QWidget(); ll = QVBoxLayout(logtab)
@@ -215,7 +229,7 @@ class Center(QMainWindow):
         self.refresh(); self.timer = QTimer(self); self.timer.timeout.connect(self.refresh); self.timer.start(15000)
 
     def refresh(self):
-        charge, temp, camera, storage = snapshot()
+        charge, temp, camera, storage, audio = snapshot()
         current_cpu = cpu_counters()
         proc = cpu_changes(self.previous_cpu, current_cpu)
         self.previous_cpu = current_cpu
@@ -224,6 +238,7 @@ class Center(QMainWindow):
         self.processes.setText('PROCESY  ·  bieżący pomiar CPU\n' + proc)
         self.camera.setText(camera)
         self.storage.setText('DYSK  ·  ' + storage)
+        self.audio.setText('DŹWIĘK  ·  ' + audio)
         current = (charge, camera)
         if self.previous is None:
             changes = 'ZMIANY  ·  Czekam na kolejny odczyt baterii i kamery.'
@@ -243,6 +258,25 @@ class Center(QMainWindow):
         rows = [f'{name}\n{status}' for name, busy, status in downloads.values()]
         self.downloads.setText('\n\n'.join(rows) if rows else 'Brak danych o pobieraniu w domyślnych bibliotekach Steam.')
         self.log.setText(history())
+
+    def explain(self):
+        self.refresh()
+        camera = self.camera.text()
+        audio = self.audio.text()
+        advice = []
+        if 'WŁĄCZONA' in camera and 'Gaze: usługa działa' in camera:
+            advice.append('Konwerter Discorda i Gaze używają tej samej kamery IR. Jeśli rozpoznawanie nie rusza, wyłącz konwerter przyciskiem w Centrum i spróbuj ponownie.')
+        elif 'stanem błędu' in camera:
+            advice.append('Usługa kamery Discorda zakończyła się błędem lub została zatrzymana w sposób zgłoszony jako błąd. Sprawdź jej stan przed ponownym uruchomieniem.')
+        else:
+            advice.append('Konwerter Discorda nie jest obecnie aktywny według systemd. To samo nie dowodzi, że kamera jest dostępna dla Gaze.')
+        if 'Stan: wyciszone.' in audio:
+            advice.append('Domyślne wyjście dźwięku jest wyciszone. Możesz je odciszyć w ustawieniach dźwięku.')
+        elif 'niewyciszone' in audio:
+            advice.append('Domyślne wyjście nie jest wyciszone. Jeśli nadal nic nie słychać, sprawdź wybrane urządzenie i jego połączenie.')
+        else:
+            advice.append('Nie udało się ustalić stanu wyciszenia. Sprawdź ustawienia dźwięku.')
+        QMessageBox.information(self, 'Kripusek wyjaśnia', '\n\n'.join(advice))
 
     def toggle_camera(self):
         script = HOME / '.local/bin/ir-camera'
