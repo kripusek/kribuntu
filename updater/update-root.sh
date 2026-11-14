@@ -22,6 +22,7 @@ mv -f /usr/local/bin/kribuntu-update.new /usr/local/bin/kribuntu-update
 install -Dm644 "$repo/updater/kribuntu-update.desktop" /usr/local/share/applications/kribuntu-update.desktop
 install -Dm644 "$repo/updater/kribuntu-gaming.desktop" /usr/local/share/applications/kribuntu-gaming.desktop
 install -Dm644 "$repo/center/kribuntu_steam.py" /usr/local/lib/kribuntu/kribuntu_steam.py
+install -Dm644 "$repo/center/kribuntu_games.py" /usr/local/lib/kribuntu/kribuntu_games.py
 install -Dm755 "$repo/center/kribuntu-steam-watch.py" /usr/local/lib/kribuntu/kribuntu-steam-watch.py
 install -Dm644 "$repo/center/kribuntu-steam-watch.service" /usr/lib/systemd/user/kribuntu-steam-watch.service
 install -Dm755 "$repo/center/kribuntu-sleep-watch.py" /usr/local/lib/kribuntu/kribuntu-sleep-watch.py

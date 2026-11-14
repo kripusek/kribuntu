@@ -11,11 +11,12 @@ import time
 
 sys.path.insert(0, '/usr/local/lib/kribuntu')
 from kribuntu_steam import steam_downloads
+from kribuntu_games import installed_games, launch_command
 
-from PyQt5.QtCore import Qt, QTimer, QSize, QSettings, QProcess
+from PyQt5.QtCore import Qt, QTimer, QSize, QSettings, QProcess, QObject, QRunnable, QThreadPool, pyqtSignal
 from PyQt5.QtGui import QMovie
-from PyQt5.QtWidgets import (QApplication, QCheckBox, QGridLayout, QHBoxLayout, QLabel,
-    QMainWindow, QMessageBox, QPushButton, QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget)
+from PyQt5.QtWidgets import (QApplication, QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabel,
+    QListWidget, QListWidgetItem, QMainWindow, QMessageBox, QPushButton, QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget)
 
 HOME = Path.home()
 STATE = Path(os.environ.get('XDG_STATE_HOME', HOME / '.local/state')) / 'kribuntu' / 'activity.jsonl'
@@ -234,6 +235,40 @@ def snapshot():
     return charge, temptext, camera, storage, audio
 
 
+class GameScanSignals(QObject):
+    finished = pyqtSignal(object)
+
+
+class GameScan(QRunnable):
+    def __init__(self):
+        super().__init__()
+        self.signals = GameScanSignals()
+
+    def run(self):
+        try:
+            games = installed_games()
+        except Exception:
+            games = None
+        self.signals.finished.emit(games)
+
+
+class LaunchCard(QPushButton):
+    def __init__(self, title, description, index):
+        super().__init__()
+        self.setObjectName('launchCard')
+        self.setAccessibleName(title + ': ' + description)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setMinimumHeight(130)
+        layout = QVBoxLayout(self); layout.setContentsMargins(17, 15, 17, 15); layout.setSpacing(5)
+        number = QLabel(f'{index:02d}  /  KRIBUNTU'); number.setObjectName('cardEyebrow')
+        name = QLabel(title); name.setObjectName('cardTitle')
+        detail = QLabel(description); detail.setObjectName('cardDetail'); detail.setWordWrap(True)
+        action = QLabel('OTWÓRZ  →'); action.setObjectName('cardAction')
+        for label in (number, name, detail, action):
+            label.setAttribute(Qt.WA_TransparentForMouseEvents)
+        layout.addWidget(number); layout.addWidget(name); layout.addWidget(detail); layout.addStretch(); layout.addWidget(action)
+
+
 class Center(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -241,25 +276,50 @@ class Center(QMainWindow):
         self.resize(1000, 720)
         self.setMinimumSize(680, 520)
         base = QWidget(); self.setCentralWidget(base)
-        outer = QVBoxLayout(base); outer.setContentsMargins(32, 26, 32, 26); outer.setSpacing(14)
+        outer = QVBoxLayout(base); outer.setContentsMargins(28, 22, 28, 22); outer.setSpacing(14)
         header = QHBoxLayout(); title_area = QVBoxLayout()
+        eyebrow = QLabel('TWOJA PRZESTRZEŃ'); eyebrow.setObjectName('eyebrow'); title_area.addWidget(eyebrow)
         title = QLabel('KRIBUNTU'); title.setObjectName('title'); title_area.addWidget(title)
-        subtitle = QLabel('Twój laptop, gry i ostatnie działania'); subtitle.setObjectName('subtitle'); title_area.addWidget(subtitle)
+        subtitle = QLabel('Centrum gier i laptopa'); subtitle.setObjectName('subtitle'); title_area.addWidget(subtitle)
         header.addLayout(title_area, 1)
         self.settings = QSettings('Kribuntu', 'Center')
+        assistant = QFrame(); assistant.setObjectName('assistant'); assistant_layout = QHBoxLayout(assistant)
+        assistant_layout.setContentsMargins(12, 10, 12, 10); assistant_layout.setSpacing(10)
         mascot_path = Path('/usr/local/share/kribuntu/kripusek.gif')
         if not mascot_path.is_file():
             mascot_path = Path(__file__).resolve().parent.parent / 'theme/kripusek.gif'
         self.movie = QMovie(str(mascot_path))
         if self.movie.isValid():
-            mascot_area = QVBoxLayout(); mascot = QLabel(); mascot.setFixedSize(76, 76)
-            self.movie.setScaledSize(QSize(76, 76)); mascot.setMovie(self.movie); mascot_area.addWidget(mascot, alignment=Qt.AlignHCenter)
+            mascot = QLabel(); mascot.setFixedSize(58, 58)
+            self.movie.setScaledSize(QSize(58, 58)); mascot.setMovie(self.movie); assistant_layout.addWidget(mascot)
+        assistant_words = QVBoxLayout(); assistant_words.setSpacing(3)
+        assistant_title = QLabel('KRIPUSEK  ·  POMOCNIK'); assistant_title.setObjectName('assistantTitle'); assistant_words.addWidget(assistant_title)
+        self.assistant_text = QLabel('Cześć! Zaraz sprawdzę Twoje gry.'); self.assistant_text.setObjectName('assistantText')
+        self.assistant_text.setTextFormat(Qt.PlainText); self.assistant_text.setWordWrap(True); self.assistant_text.setMaximumWidth(300)
+        assistant_words.addWidget(self.assistant_text)
+        assistant_actions = QHBoxLayout(); assistant_actions.setSpacing(12)
+        tip_button = QPushButton('Podpowiedź'); tip_button.setObjectName('assistantButton'); tip_button.clicked.connect(self.show_tip)
+        assistant_actions.addWidget(tip_button)
+        if self.movie.isValid():
             animation = QCheckBox('Animacja'); animation.setChecked(self.settings.value('animate_mascot', True, type=bool))
-            animation.toggled.connect(self.set_animation); mascot_area.addWidget(animation); header.addLayout(mascot_area)
+            animation.toggled.connect(self.set_animation); assistant_actions.addWidget(animation)
             self.set_animation(animation.isChecked(), save=False)
+        assistant_actions.addStretch(); assistant_words.addLayout(assistant_actions); assistant_layout.addLayout(assistant_words)
+        header.addWidget(assistant)
         outer.addLayout(header)
         self.tabs = QTabWidget(); outer.addWidget(self.tabs, 1)
-        home = QWidget(); layout = QVBoxLayout(home); grid = QGridLayout(); layout.addLayout(grid)
+        home = QWidget(); layout = QVBoxLayout(home); layout.setContentsMargins(18, 18, 18, 18); layout.setSpacing(14)
+        hero = QFrame(); hero.setObjectName('hero'); hero_layout = QVBoxLayout(hero); hero_layout.setContentsMargins(22, 18, 22, 18); hero_layout.setSpacing(4)
+        hero_eyebrow = QLabel('CENTRUM  /  START'); hero_eyebrow.setObjectName('heroEyebrow'); hero_layout.addWidget(hero_eyebrow)
+        hero_title = QLabel('Wszystko w jednym miejscu.'); hero_title.setObjectName('heroTitle'); hero_title.setWordWrap(True); hero_layout.addWidget(hero_title)
+        self.home_status = QLabel('Sprawdzam stan laptopa…'); self.home_status.setObjectName('heroStatus'); self.home_status.setWordWrap(True); hero_layout.addWidget(self.home_status)
+        layout.addWidget(hero)
+        games_head = QHBoxLayout(); games_label = QLabel('Twoje gry'); games_label.setObjectName('sectionTitle'); games_head.addWidget(games_label)
+        games_head.addStretch(); self.library_link = QPushButton('Zobacz bibliotekę  →'); self.library_link.setObjectName('textButton')
+        self.library_link.clicked.connect(lambda: self.tabs.setCurrentWidget(self.games_page)); games_head.addWidget(self.library_link); layout.addLayout(games_head)
+        self.featured_layout = QHBoxLayout(); self.featured_layout.setSpacing(10); layout.addLayout(self.featured_layout)
+        quick_label = QLabel('SZYBKI DOSTĘP'); quick_label.setObjectName('sectionEyebrow'); layout.addWidget(quick_label)
+        grid = QGridLayout(); grid.setSpacing(10); layout.addLayout(grid)
         items = [
             ('STEAM', 'Tryb gier', ['flatpak', 'run', 'com.valvesoftware.Steam', '-gamepadui']),
             ('HEROIC', 'Epic Games i GOG', ['flatpak', 'run', 'com.heroicgameslauncher.hgl']),
@@ -269,10 +329,12 @@ class Center(QMainWindow):
             ('USTAWIENIA', 'Ustawienia KDE', [shutil.which('systemsettings') or 'systemsettings5']),
         ]
         for index, (name, desc, cmd) in enumerate(items):
-            button = QPushButton(name + '\n' + desc); button.setCursor(Qt.PointingHandCursor)
+            button = LaunchCard(name, desc, index + 1)
             button.clicked.connect(lambda checked=False, c=cmd, n=name: self.launch(c, n))
             grid.addWidget(button, index // 3, index % 3)
-        layout.addStretch(); self.tabs.addTab(home, 'Start')
+        layout.addStretch()
+        home_scroll = QScrollArea(); home_scroll.setWidgetResizable(True); home_scroll.setWidget(home)
+        self.tabs.addTab(home_scroll, 'Start')
         info = QWidget(); il = QVBoxLayout(info)
         heading = QLabel('Co się dzieje na laptopie?'); heading.setObjectName('heading'); il.addWidget(heading)
         note = QLabel('Bieżące odczyty pomagają znaleźć przyczynę. Same nie są diagnozą.'); note.setWordWrap(True); il.addWidget(note)
@@ -297,14 +359,24 @@ class Center(QMainWindow):
         undo_button = QPushButton('Cofnij ostatnią zmianę kamery IR z Centrum'); undo_button.clicked.connect(self.undo_camera); ll.addWidget(undo_button)
         self.tabs.addTab(logtab, 'Ślady')
         games_tab = QWidget(); gl = QVBoxLayout(games_tab)
-        gh = QLabel('Kripusek sprawdza gry'); gh.setObjectName('heading'); gl.addWidget(gh)
-        gd = QLabel('Sprawdź znany problem bez automatycznej zmiany plików. Pierwsza diagnoza dotyczy The Talos Principle w domyślnym katalogu Heroica.')
+        gh = QLabel('Twoja biblioteka'); gh.setObjectName('heading'); gl.addWidget(gh)
+        gd = QLabel('Zainstalowane gry ze Steama i Heroica. Lista odświeża się automatycznie; wybierz grę, aby ją uruchomić.')
         gd.setWordWrap(True); gl.addWidget(gd)
+        self.library_status = QLabel('Szukam zainstalowanych gier…'); self.library_status.setObjectName('subtitle'); gl.addWidget(self.library_status)
+        self.library = QListWidget(); self.library.setObjectName('library'); self.library.setMinimumHeight(170)
+        self.library.itemDoubleClicked.connect(lambda _item: self.launch_selected_game())
+        gl.addWidget(self.library)
+        library_actions = QHBoxLayout()
+        play = QPushButton('Uruchom wybraną grę'); play.clicked.connect(self.launch_selected_game); library_actions.addWidget(play)
+        refresh_games = QPushButton('Odśwież bibliotekę'); refresh_games.clicked.connect(self.request_game_scan); library_actions.addWidget(refresh_games)
+        gl.addLayout(library_actions)
+        diag_label = QLabel('SPRAWDŹ GRĘ'); diag_label.setObjectName('sectionEyebrow'); gl.addWidget(diag_label)
         check_talos = QPushButton('Sprawdź poprawkę The Talos Principle')
         check_talos.clicked.connect(self.check_talos); gl.addWidget(check_talos)
         self.game_report = QLabel('Wybierz sprawdzenie, aby zobaczyć wynik.'); self.game_report.setTextFormat(Qt.PlainText)
         self.game_report.setWordWrap(True); self.game_report.setObjectName('card'); self.game_report.setTextInteractionFlags(Qt.TextSelectableByMouse); gl.addWidget(self.game_report)
-        gl.addStretch(); self.tabs.addTab(games_tab, 'Gry')
+        gl.addStretch(); self.games_page = QScrollArea(); self.games_page.setWidgetResizable(True); self.games_page.setWidget(games_tab)
+        self.tabs.addTab(self.games_page, 'Gry')
         plan_tab = QWidget(); pl = QVBoxLayout(plan_tab)
         ph = QLabel('Kripusek: czy zdążę?'); ph.setObjectName('heading'); pl.addWidget(ph)
         pn = QLabel('Porównaj swój plan z szacowanym czasem na baterii. Kripusek zostawia 15% zapasu i zakłada taki sam pobór energii jak w tej chwili.')
@@ -323,19 +395,55 @@ class Center(QMainWindow):
         self.downloads = QLabel(); self.downloads.setObjectName('card'); self.downloads.setTextFormat(Qt.PlainText); self.downloads.setWordWrap(True); self.downloads.setAlignment(Qt.AlignTop | Qt.AlignLeft); dl.addWidget(self.downloads)
         dl.addStretch(); self.tabs.addTab(downloads_tab, 'Pobieranie')
         self.setStyleSheet('''
-          QMainWindow, QWidget { background:#14141c; color:#f7f7fa; font-family:sans-serif; }
-          QLabel#title { font-size:34px; font-weight:800; letter-spacing:3px; }
-          QLabel#subtitle { color:#c4c4ce; font-size:16px; }
-          QLabel#heading { font-size:22px; font-weight:bold; }
-          QLabel#card { background:#22232d; border:1px solid #48424c; border-radius:10px; padding:13px; font-size:14px; }
-          QPushButton { background:#252631; border:1px solid #494653; border-radius:10px; padding:14px; text-align:left; font-size:15px; font-weight:bold; min-height:38px; }
-          QPushButton:hover, QPushButton:focus { background:#8d1f35; border:2px solid #ff4e68; }
-          QTabBar::tab { background:#252631; padding:10px 22px; border-radius:6px; }
-          QTabBar::tab:selected { background:#a41d38; }
+          QMainWindow, QWidget { background:#101014; color:#f4f2f3; font-family:'Noto Sans',sans-serif; font-size:13px; }
+          QLabel { background:transparent; }
+          QLabel#eyebrow, QLabel#sectionEyebrow { color:#f35a68; font-size:10px; font-weight:700; letter-spacing:2px; }
+          QLabel#title { color:#ffffff; font-size:30px; font-weight:800; letter-spacing:4px; }
+          QLabel#subtitle { color:#a8a3a9; font-size:13px; }
+          QLabel#heading, QLabel#sectionTitle { color:#ffffff; font-size:20px; font-weight:700; }
+          QLabel#card { background:#1b1a20; border:1px solid #353039; border-radius:12px; padding:15px; font-size:13px; }
+          QFrame#assistant { background:#21181e; border:1px solid #59323c; border-radius:14px; }
+          QFrame#assistant QLabel, QFrame#assistant QCheckBox { background:transparent; border:none; }
+          QLabel#assistantTitle { color:#fa7180; font-size:10px; font-weight:800; letter-spacing:1px; }
+          QLabel#assistantText { color:#f1e8eb; font-size:12px; }
+          QFrame#hero { background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #561728,stop:0.52 #2c1921,stop:1 #1b1a20); border:1px solid #6b303e; border-radius:16px; }
+          QFrame#hero QLabel { background:transparent; border:none; }
+          QLabel#heroEyebrow { color:#ff8d99; font-size:10px; font-weight:700; letter-spacing:2px; }
+          QLabel#heroTitle { color:#ffffff; font-size:24px; font-weight:800; }
+          QLabel#heroStatus { color:#e0cbd0; font-size:12px; }
+          QPushButton { background:#25232a; border:1px solid #48414b; border-radius:10px; padding:11px 14px; text-align:left; font-size:13px; font-weight:700; min-height:30px; }
+          QPushButton:hover { background:#3c242c; border:1px solid #bd4659; }
+          QPushButton:focus { border:2px solid #ff6679; }
+          QPushButton#launchCard { background:#1c1b20; border:1px solid #353039; border-radius:14px; padding:0; }
+          QPushButton#launchCard:hover { background:#302127; border:1px solid #bb4659; }
+          QPushButton#launchCard:focus { border:2px solid #ff6679; }
+          QPushButton#launchCard QLabel { background:transparent; border:none; }
+          QLabel#cardEyebrow { color:#a36d79; font-size:9px; font-weight:700; letter-spacing:1px; }
+          QLabel#cardTitle { color:#ffffff; font-size:15px; font-weight:800; }
+          QLabel#cardDetail { color:#b6afb6; font-size:12px; font-weight:400; }
+          QLabel#cardAction { color:#f36a7d; font-size:10px; font-weight:800; letter-spacing:1px; }
+          QPushButton#textButton, QPushButton#assistantButton { background:transparent; border:none; padding:3px 5px; min-height:0; color:#ff8794; font-size:11px; }
+          QPushButton#textButton:hover, QPushButton#assistantButton:hover { color:#ffffff; }
+          QPushButton#featuredGame { background:#2a2026; border:1px solid #5c353e; border-radius:10px; min-height:44px; font-size:12px; }
+          QTabWidget::pane { background:#151419; border:1px solid #302a31; border-radius:12px; top:-1px; }
+          QTabBar::tab { background:#1e1c22; color:#c9c1c9; padding:10px 12px; margin-right:3px; border-top-left-radius:8px; border-top-right-radius:8px; font-weight:600; }
+          QTabBar::tab:selected { background:#a82138; color:white; }
+          QTabBar::tab:hover:!selected { background:#34252c; }
+          QScrollArea { border:0; background:transparent; }
+          QListWidget#library { background:#1b1a20; border:1px solid #353039; border-radius:12px; padding:5px; }
+          QListWidget#library::item { padding:12px; border-radius:7px; color:#f4f2f3; }
+          QListWidget#library::item:selected { background:#78263a; color:white; }
+          QSpinBox { background:#25232a; border:1px solid #5a4b55; border-radius:7px; padding:6px; }
+          QCheckBox { color:#c9c1c9; font-size:11px; }
         ''')
         self.previous = None
         self.previous_cpu = None
         self.camera_job = None
+        self.game_by_key = {}
+        self.previous_game_keys = None
+        self.library_signature = None
+        self.game_scan = None
+        self.tip_index = 0
         self.refresh(); self.timer = QTimer(self); self.timer.timeout.connect(self.refresh); self.timer.start(15000)
 
     def set_animation(self, enabled, save=True):
@@ -349,6 +457,7 @@ class Center(QMainWindow):
 
     def refresh(self):
         charge, temp, camera, storage, audio = snapshot()
+        self.home_status.setText('BATERIA  ·  ' + charge.split('\n')[0] + '     /     ' + ('GAZE  ·  USŁUGA DZIAŁA' if 'Gaze: usługa działa' in camera else 'GAZE  ·  BRAK ODCZYTU'))
         current_cpu = cpu_counters()
         proc = cpu_changes(self.previous_cpu, current_cpu)
         self.previous_cpu = current_cpu
@@ -372,12 +481,96 @@ class Center(QMainWindow):
         self.previous = current
         self.update_plan()
         downloads = steam_downloads()
+        self.current_downloads = downloads
         watch_rc, watch_state = command('systemctl', '--user', 'is-active', 'kribuntu-steam-watch.service')
         self.watch_status.setText('Monitor w tle: działa.' if watch_rc == 0 and watch_state == 'active'
                                   else 'Monitor w tle: nie jest uruchomiony. Uruchom go lub wyloguj się i zaloguj ponownie po aktualizacji.')
         rows = [f'{name}\n{status}' for name, busy, status in downloads.values()]
         self.downloads.setText('\n\n'.join(rows) if rows else 'Brak danych o pobieraniu w domyślnych bibliotekach Steam.')
         self.log.setText(history())
+        self.request_game_scan()
+
+    def request_game_scan(self):
+        if self.game_scan is not None:
+            return
+        worker = GameScan()
+        self.game_scan = worker
+        worker.signals.finished.connect(self.games_scanned)
+        QThreadPool.globalInstance().start(worker)
+
+    def games_scanned(self, games):
+        self.game_scan = None
+        if games is None:
+            self.library_status.setText('Nie udało się odczytać biblioteki. Spróbuj odświeżyć.')
+            return
+        signature = tuple((g['key'], g['title'], g['source'], g['available']) for g in games)
+        if signature == self.library_signature:
+            return
+        self.library_signature = signature
+        selected = self.library.currentItem()
+        selected_key = selected.data(Qt.UserRole) if selected else None
+        old_keys = self.previous_game_keys
+        self.game_by_key = {game['key']: game for game in games}
+        keys = set(self.game_by_key)
+        self.previous_game_keys = keys
+        self.library.clear()
+        for game in games:
+            status = game['source'] if game['available'] else game['source'] + '  ·  katalog niedostępny'
+            item = QListWidgetItem(game['title'] + '\n' + status)
+            item.setData(Qt.UserRole, game['key']); item.setToolTip(status); self.library.addItem(item)
+            if game['key'] == selected_key:
+                self.library.setCurrentItem(item)
+        if self.library.count() and self.library.currentItem() is None:
+            self.library.setCurrentRow(0)
+        self.library_status.setText(f'Wykryto {len(games)} gier. Źródła: Steam i Heroic.')
+        self.library_link.setText(f'Biblioteka  ·  {len(games)}  →')
+        while self.featured_layout.count():
+            item = self.featured_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        if games:
+            for game in games[:3]:
+                card = QPushButton(game['title'] + '\n' + game['source']); card.setObjectName('featuredGame')
+                card.setToolTip(game['title'] + ' — ' + game['source']); card.setEnabled(game['available'])
+                card.clicked.connect(lambda checked=False, item=game: self.launch_game(item))
+                self.featured_layout.addWidget(card)
+        else:
+            empty = QLabel('Nie znaleziono jeszcze gier w obsługiwanych bibliotekach.'); empty.setWordWrap(True)
+            self.featured_layout.addWidget(empty)
+        new = keys - old_keys if old_keys is not None else set()
+        if new:
+            names = [g['title'] for g in games if g['key'] in new]
+            self.assistant_text.setText('Zauważyłem nową grę: ' + names[0] + (f' i {len(names) - 1} kolejnych.' if len(names) > 1 else '.'))
+        elif old_keys is None:
+            self.assistant_text.setText(f'Znalazłem {len(games)} gier. Otwórz bibliotekę, żeby je zobaczyć.')
+
+    def launch_selected_game(self):
+        item = self.library.currentItem()
+        if item is None:
+            QMessageBox.information(self, 'Biblioteka', 'Wybierz grę z listy.')
+            return
+        game = self.game_by_key.get(item.data(Qt.UserRole))
+        if game:
+            self.launch_game(game)
+
+    def launch_game(self, game):
+        command_line = launch_command(game)
+        if command_line is None:
+            QMessageBox.warning(self, 'Biblioteka', 'Katalog gry jest niedostępny albo nie można ustalić sposobu uruchomienia. Sprawdź ją w launcherze.')
+            return
+        self.launch(command_line, 'Gra: ' + game['title'])
+
+    def show_tip(self):
+        tips = ['Twoje gry ze Steama i Heroica znajdziesz w zakładce Gry.',
+                'W zakładce Laptop i kamera sprawdzisz baterię, temperatury i dźwięk.',
+                'W Śladach możesz cofnąć ostatnią zmianę kamery wykonaną w Centrum.']
+        if 'WŁĄCZONA' in self.camera.text() and 'Gaze: usługa działa' in self.camera.text():
+            tips.insert(0, 'Discord i Gaze mogą potrzebować tej samej kamery IR. Sprawdź przełącznik kamery.')
+        active = [name for name, busy, _status in getattr(self, 'current_downloads', {}).values() if busy]
+        if active:
+            tips.insert(0, 'Steam pobiera: ' + active[0] + '. Postęp jest w zakładce Pobieranie.')
+        self.assistant_text.setText(tips[self.tip_index % len(tips)])
+        self.tip_index += 1
 
     def update_plan(self):
         minutes = self.plan_minutes.value()

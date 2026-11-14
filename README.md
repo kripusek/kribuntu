@@ -65,6 +65,8 @@ bash ~/kribuntu-source/setup-updater.sh
 System poprosi o hasło administratora. Potem w menu aplikacji uruchom **Aktualizacje Kribuntu**, aby pobrać nowsze pliki i wybrać zastosowanie ciemnego motywu, kolorów i tapety. W menu pojawi się też **Kribuntu — tryb gier**, uruchamiający interfejs Steam; wymaga Steama z Flathub. Aktualizator nie instaluje pełnych aktualizacji Ubuntu — te nadal obsługuje Discover. W razie problemów aktualizator można wywołać w terminalu jako `kribuntu-update`.
 Po aktualizacji uruchom z menu **Centrum Kribuntu** — to okno z kafelkami gier, Discorda, diagnostyki i ustawień. Program nie zastępuje pulpitu KDE.
 
+Centrum odczytuje lokalne listy zainstalowanych gier Steama i Heroica (Epic, GOG i Amazon), pokazuje bibliotekę i pozwala uruchamiać znalezione gry. Kripusek odświeża bibliotekę w tle; monitor sprawdza ją także przy zamkniętym Centrum i zgłasza nowe gry powiadomieniem. Wykrywanie zależy od danych zapisywanych przez obsługiwane launchery.
+
 W Centrum zakładka **Laptop i kamera** pokazuje baterię, dostępne temperatury, procesy i stan przełącznika kamery IR dla Discorda. Gaze i Discord mogą rywalizować o tę samą kamerę; przełącznik nie zmienia konfiguracji logowania. Zakładka **Ślady** zapisuje lokalnie tylko działania uruchomione w Centrum i powiadomienia Steama, a nie historię całego systemu. Wskazania procesów pokazują wykorzystanie CPU od poprzedniego odczytu (100% oznacza jeden rdzeń).
 
 W zakładce **Ślady** można cofnąć ostatnią potwierdzoną zmianę stanu przełącznika kamery IR wykonaną przez Centrum. Cofanie nie nastąpi, jeśli aktualny stan różni się od zapisanego stanu po tej zmianie. Nie jest to przywracanie dowolnych zmian systemu.
